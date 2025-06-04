@@ -22,13 +22,19 @@
 ## Session Progress
 - ✅ Gathered requirements from user
 - ✅ Clarified multiplayer approach (30s timer, async-friendly)
-- 🔄 Documenting requirements and updating CLAUDE.md
+- ✅ Documented requirements and updated CLAUDE.md
+- ✅ Created Convex schema for games, players, betting rounds
+- ✅ Removed Clerk auth, implemented name-based system
+- ✅ Built core game mutations and queries
+- ✅ Created home page with game lobby
+- ✅ Built game page with betting interface
+- 🔄 Ready for testing and refinement
 
 ## Instructions for Future Sessions
 If starting fresh, reread the project:init-app command contents in CLAUDE.md to understand the initialization workflow.
 
 ## Commits Made This Session
-(None yet)
+1. init: document Rock Paper Scissors Poker requirements and remove template instructions
 
 ## Next Steps
 1. Remove template instructions from CLAUDE.md
