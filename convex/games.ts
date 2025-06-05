@@ -144,18 +144,31 @@ export const getAvailableGames = query({
 
     const gamesWithPlayerCount = await Promise.all(
       allGames.map(async (game) => {
-        const playerCount = await ctx.db
+        const players = await ctx.db
           .query("players")
           .withIndex("by_game", (q) => q.eq("gameId", game._id))
-          .collect()
-          .then(players => players.length);
+          .collect();
         
-        return { ...game, playerCount };
+        // Calculate the most recent player activity
+        const lastActivity = players.length > 0 
+          ? Math.max(...players.map(p => p.lastSeen))
+          : game.createdAt || 0;
+        
+        return { ...game, playerCount: players.length, lastActivity };
       })
     );
 
-    // Only return games that have room for more players
-    return gamesWithPlayerCount.filter(game => game.playerCount < game.maxPlayers);
+    // Filter out stale games and games that are full
+    const activeGames = gamesWithPlayerCount.filter(game => {
+      const isNotFull = game.playerCount < game.maxPlayers;
+      const isRecent = Date.now() - game.lastActivity < 10 * 60 * 1000; // 10 minutes
+      const hasPlayers = game.playerCount > 0;
+      
+      // Show games that have room AND (are recent OR have active players)
+      return isNotFull && (isRecent || hasPlayers);
+    });
+
+    return activeGames.sort((a, b) => b.lastActivity - a.lastActivity); // Most recent first
   },
 });
 
@@ -647,6 +660,80 @@ export const deleteGame = mutation({
 
     // Finally delete the game
     await ctx.db.delete(gameId);
+  },
+});
+
+export const cleanupStaleGames = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Find games that are more than 1 hour old with no recent activity
+    const allGames = await ctx.db
+      .query("games")
+      .filter((q) => q.neq(q.field("status"), "finished"))
+      .collect();
+
+    const staleGameIds: any[] = [];
+
+    for (const game of allGames) {
+      const players = await ctx.db
+        .query("players")
+        .withIndex("by_game", (q) => q.eq("gameId", game._id))
+        .collect();
+      
+      const lastActivity = players.length > 0 
+        ? Math.max(...players.map(p => p.lastSeen))
+        : game.createdAt || 0;
+      
+      const isStale = Date.now() - lastActivity > 60 * 60 * 1000; // 1 hour
+      const isEmpty = players.length === 0;
+      
+      if (isStale || isEmpty) {
+        staleGameIds.push(game._id);
+      }
+    }
+
+    // Delete stale games using the internal deletion logic
+    for (const gameId of staleGameIds) {
+      try {
+        // Get all players in this game
+        const players = await ctx.db
+          .query("players")
+          .withIndex("by_game", (q) => q.eq("gameId", gameId))
+          .collect();
+
+        // Delete all players first
+        for (const player of players) {
+          await ctx.db.delete(player._id);
+        }
+
+        // Delete all betting rounds for this game
+        const bettingRounds = await ctx.db
+          .query("bettingRounds")
+          .withIndex("by_game", (q) => q.eq("gameId", gameId))
+          .collect();
+        
+        for (const round of bettingRounds) {
+          // Delete actions for this round
+          const actions = await ctx.db
+            .query("playerActions")
+            .withIndex("by_round", (q) => q.eq("bettingRoundId", round._id))
+            .collect();
+          
+          for (const action of actions) {
+            await ctx.db.delete(action._id);
+          }
+          
+          await ctx.db.delete(round._id);
+        }
+
+        // Finally delete the game
+        await ctx.db.delete(gameId);
+      } catch (error) {
+        console.log(`Failed to delete stale game ${gameId}:`, error);
+      }
+    }
+
+    return { cleaned: staleGameIds.length };
   },
 });
 

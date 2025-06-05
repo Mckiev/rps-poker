@@ -70,6 +70,14 @@
    - Shows standings below the poker table during gameplay
    - Cleaned up lobby page imports and component references
 
+10. ✅ **Stale Game Cleanup & Better Version Display**
+   - Improved version indicator visibility with dark styling and pulsing dot
+   - Added intelligent stale game filtering (only show recent or active games)
+   - Added 10-minute activity filter to hide abandoned games
+   - Added manual cleanup button in lobby with RefreshCw icon
+   - Created cleanupStaleGames mutation to remove old/empty games
+   - Games sorted by most recent activity first
+
 ### Key Design Changes:
 - Table: From 384px to 256px height
 - Border: From 8px amber to 4px gray
@@ -85,6 +93,8 @@
 4. feat: implement session statistics system with leaderboard
 5. fix: resolve 3-player game issues and disappearing games problem
 6. feat: move session standings to game table for better visibility
+7. feat: add version indicator to lobby showing latest update info
+8. fix: improve stale game cleanup and make version indicator more visible
 
 ### Next Steps:
 - Test the compact design on different screen sizes

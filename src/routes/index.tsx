@@ -2,7 +2,7 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Gamepad2, Plus, Users, Trash2 } from "lucide-react";
+import { Gamepad2, Plus, Users, Trash2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 
@@ -78,11 +78,12 @@ function HomePage() {
 
           {/* Version Info */}
           <div className="mt-8 text-center">
-            <div className="inline-block bg-base-300 px-3 py-1.5 rounded-lg text-xs text-base-content/70">
+            <div className="inline-block bg-gray-800 border border-gray-600 px-4 py-2 rounded-lg text-sm text-gray-300 shadow-lg">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span>Latest update: Dec 5, 2024 11:45 AM - Fixed 3-player games & moved session standings</span>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="font-medium">Latest update: Dec 5, 2024 11:45 AM</span>
               </div>
+              <div className="text-xs text-gray-400 mt-1">Fixed 3-player games & moved session standings</div>
             </div>
           </div>
         </div>
@@ -199,6 +200,7 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
   const { data: games } = useSuspenseQuery(availableGamesQueryOptions);
   const joinGame = useMutation(api.games.joinGame);
   const deleteGame = useMutation(api.games.deleteGame);
+  const cleanupStaleGames = useMutation(api.games.cleanupStaleGames);
   const navigate = useNavigate();
 
   const handleJoinGame = async (gameId: string) => {
@@ -223,12 +225,34 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
     }
   };
 
+  const handleCleanupStaleGames = async () => {
+    try {
+      const result = await cleanupStaleGames({});
+      alert(`Cleaned up ${result.cleaned} stale games`);
+    } catch (error) {
+      console.error("Failed to cleanup stale games:", error);
+      alert("Failed to cleanup stale games");
+    }
+  };
+
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-        <Users className="w-6 h-6" />
-        Available Games
-      </h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Users className="w-6 h-6" />
+          Available Games
+        </h2>
+        {games.length > 0 && (
+          <button 
+            className="btn btn-ghost btn-sm"
+            onClick={handleCleanupStaleGames}
+            title="Clean up old/empty games"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Cleanup
+          </button>
+        )}
+      </div>
       
       {games.length === 0 ? (
         <div className="card bg-base-200">
