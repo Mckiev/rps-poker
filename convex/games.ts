@@ -5,20 +5,21 @@ import { Id } from "./_generated/dataModel";
 
 // Generate human-readable game names
 function generateGameName(): string {
-  const adjectives = [
-    "Quick", "Wild", "Royal", "Lucky", "Golden", "Silver", "Diamond", "Ace", 
-    "High", "Fast", "Bold", "Sharp", "Smooth", "Elite", "Prime", "Epic"
+  const firstWords = [
+    "Royal", "Golden", "Diamond", "Silver", "Crystal", "Emerald", "Ruby", "Sapphire",
+    "Midnight", "Thunder", "Lightning", "Phoenix", "Dragon", "Eagle", "Wolf", "Tiger",
+    "Ocean", "Mountain", "Desert", "Forest", "Cosmic", "Shadow", "Blazing", "Frozen"
   ];
-  const nouns = [
-    "Table", "Room", "Game", "Match", "Round", "Tournament", "Challenge", 
-    "Session", "Arena", "Club", "Lounge", "Casino", "Hall", "Palace"
+  const secondWords = [
+    "Table", "Arena", "Palace", "Casino", "Lounge", "Club", "Hall", "Throne",
+    "Chamber", "Vault", "Tower", "Garden", "Ridge", "Peak", "Grove", "Haven",
+    "Sanctuary", "Fortress", "Citadel", "Oasis", "Nexus", "Portal", "Realm", "Domain"
   ];
   
-  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  const number = Math.floor(Math.random() * 999) + 1;
+  const firstWord = firstWords[Math.floor(Math.random() * firstWords.length)];
+  const secondWord = secondWords[Math.floor(Math.random() * secondWords.length)];
   
-  return `${adjective} ${noun} ${number}`;
+  return `${firstWord} ${secondWord}`;
 }
 
 export const createGame = mutation({
@@ -48,6 +49,14 @@ export const createGame = mutation({
       holeCards: [],
       status: "active",
       lastSeen: Date.now(),
+    });
+
+    // Track session stats - starting with -$1000 buy-in
+    await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
+      playerName,
+      profitChange: -1000, // Buy-in cost
+      gameFinished: false,
+      handWon: false,
     });
 
     return { gameId, playerId };
@@ -340,6 +349,14 @@ export const advanceGamePhase = internalMutation({
           balance: winner.balance + game.pot 
         });
         await ctx.db.patch(gameId, { lastHandWinner: winner.name });
+        
+        // Track session stats for hand win
+        await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
+          playerName: winner.name,
+          profitChange: game.pot, // Profit from winning the pot
+          gameFinished: false,
+          handWon: true,
+        });
       }
       
       // Start new hand after 20 seconds to show hand results
@@ -355,6 +372,14 @@ export const advanceGamePhase = internalMutation({
           balance: winner.balance + game.pot 
         });
         await ctx.db.patch(gameId, { lastHandWinner: winner.name });
+        
+        // Track session stats for hand win
+        await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
+          playerName: winner.name,
+          profitChange: game.pot, // Profit from winning the pot
+          gameFinished: false,
+          handWon: true,
+        });
       }
       
       // Start new hand after 20 seconds to show hand results
@@ -415,6 +440,14 @@ export const processShowdown = internalMutation({
       pot: 0
     });
 
+    // Track session stats for hand win
+    await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
+      playerName: winner.name,
+      profitChange: game.pot, // Profit from winning the pot
+      gameFinished: false,
+      handWon: true,
+    });
+
     // Start new hand after 20 seconds to allow players to see showdown results
     await ctx.scheduler.runAfter(20000, internal.games.startNewHand, { gameId });
   },
@@ -441,6 +474,18 @@ export const startNewHand = internalMutation({
         status: "finished",
         currentPhase: "showdown"
       });
+      
+      // Track final session stats for all players
+      for (const player of allPlayers) {
+        const finalProfitChange = player.balance; // Final balance represents their remaining money
+        await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
+          playerName: player.name,
+          profitChange: finalProfitChange, // Add final balance
+          gameFinished: true,
+          handWon: false,
+        });
+      }
+      
       return;
     }
 
@@ -527,6 +572,55 @@ function createDeck(): string[] {
   
   return deck;
 }
+
+export const deleteGame = mutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game) {
+      throw new Error("Game not found");
+    }
+
+    // Get all players in this game
+    const players = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .collect();
+
+    // Only allow deletion if game has 1 or fewer players
+    if (players.length > 1) {
+      throw new Error("Cannot delete game with more than 1 player");
+    }
+
+    // Delete all players first
+    for (const player of players) {
+      await ctx.db.delete(player._id);
+    }
+
+    // Delete all betting rounds for this game
+    const bettingRounds = await ctx.db
+      .query("bettingRounds")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .collect();
+    
+    for (const round of bettingRounds) {
+      await ctx.db.delete(round._id);
+    }
+
+    // Delete all actions for this game
+    const actions = await ctx.db
+      .query("actions")
+      .filter((q) => q.eq(q.field("gameId"), gameId))
+      .collect();
+    
+    for (const action of actions) {
+      await ctx.db.delete(action._id);
+    }
+
+    // Finally delete the game
+    await ctx.db.delete(gameId);
+  },
+});
 
 function shuffleDeck(deck: string[]): string[] {
   const shuffled = [...deck];

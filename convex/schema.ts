@@ -54,4 +54,13 @@ export default defineSchema({
     action: v.union(v.literal("paper"), v.literal("scissors"), v.literal("rock")),
     timestamp: v.number(),
   }).index("by_round", ["bettingRoundId"]).index("by_player_round", ["playerId", "bettingRoundId"]),
+
+  sessionStats: defineTable({
+    playerName: v.string(),
+    totalProfit: v.number(), // Total winnings minus total buy-ins
+    gamesPlayed: v.number(),
+    handsWon: v.number(),
+    lastSeen: v.number(),
+    createdAt: v.number(),
+  }).index("by_name", ["playerName"]).index("by_profit", ["totalProfit"]),
 });

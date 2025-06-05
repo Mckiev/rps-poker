@@ -17,6 +17,7 @@ import type * as actions from "../actions.js";
 import type * as games from "../games.js";
 import type * as players from "../players.js";
 import type * as poker from "../poker.js";
+import type * as sessionStats from "../sessionStats.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   games: typeof games;
   players: typeof players;
   poker: typeof poker;
+  sessionStats: typeof sessionStats;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

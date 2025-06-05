@@ -2,15 +2,20 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Gamepad2, Plus, Users } from "lucide-react";
+import { Gamepad2, Plus, Users, Trash2, Trophy, TrendingUp, TrendingDown } from "lucide-react";
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 
 const availableGamesQueryOptions = convexQuery(api.games.getAvailableGames, {});
+const sessionStandingsQueryOptions = convexQuery(api.sessionStats.getSessionStandings, {});
 
 export const Route = createFileRoute("/")({
-  loader: async ({ context: { queryClient } }) =>
-    await queryClient.ensureQueryData(availableGamesQueryOptions),
+  loader: async ({ context: { queryClient } }) => {
+    await Promise.all([
+      queryClient.ensureQueryData(availableGamesQueryOptions),
+      queryClient.ensureQueryData(sessionStandingsQueryOptions),
+    ]);
+  },
   component: HomePage,
 });
 
@@ -75,6 +80,7 @@ function HomePage() {
           )}
 
           <AvailableGamesList playerName={playerName} />
+          <SessionStandings />
         </div>
       )}
     </div>
@@ -188,6 +194,7 @@ function CreateGameForm({
 function AvailableGamesList({ playerName }: { playerName: string }) {
   const { data: games } = useSuspenseQuery(availableGamesQueryOptions);
   const joinGame = useMutation(api.games.joinGame);
+  const deleteGame = useMutation(api.games.deleteGame);
   const navigate = useNavigate();
 
   const handleJoinGame = async (gameId: string) => {
@@ -198,6 +205,17 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
     } catch (error) {
       console.error("Failed to join game:", error);
       alert(error instanceof Error ? error.message : "Failed to join game");
+    }
+  };
+
+  const handleDeleteGame = async (gameId: string, gameName: string) => {
+    if (confirm(`Delete game "${gameName}"? This cannot be undone.`)) {
+      try {
+        await deleteGame({ gameId: gameId as any });
+      } catch (error) {
+        console.error("Failed to delete game:", error);
+        alert(error instanceof Error ? error.message : "Failed to delete game");
+      }
     }
   };
 
@@ -226,19 +244,109 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
                       {game.playerCount}/{game.maxPlayers} players • Ante: ${game.anteAmount}
                     </p>
                   </div>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => void handleJoinGame(game._id)}
-                    disabled={game.playerCount >= game.maxPlayers}
-                  >
-                    {game.playerCount >= game.maxPlayers ? "Full" : "Join"}
-                  </button>
+                  <div className="flex gap-2">
+                    {game.playerCount <= 1 && (
+                      <button 
+                        className="btn btn-ghost btn-sm text-error hover:bg-error hover:text-white"
+                        onClick={() => void handleDeleteGame(game._id, game.name || `Game ${game._id.slice(-6)}`)}
+                        title="Delete game"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => void handleJoinGame(game._id)}
+                      disabled={game.playerCount >= game.maxPlayers}
+                    >
+                      {game.playerCount >= game.maxPlayers ? "Full" : "Join"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function SessionStandings() {
+  const { data: standings } = useSuspenseQuery(sessionStandingsQueryOptions);
+
+  if (standings.length === 0) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          <Trophy className="w-6 h-6" />
+          Session Standings
+        </h2>
+        <div className="card bg-base-200">
+          <div className="card-body text-center">
+            <p className="opacity-70">No session data yet. Play some games to see standings!</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+        <Trophy className="w-6 h-6" />
+        Session Standings
+      </h2>
+      
+      <div className="overflow-x-auto">
+        <table className="table table-zebra">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th>Total Profit</th>
+              <th>Games</th>
+              <th>Hands Won</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {standings.map((player, index) => (
+              <tr key={player._id}>
+                <td>
+                  <div className="flex items-center gap-2">
+                    {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
+                    {index === 1 && <Trophy className="w-4 h-4 text-gray-400" />}
+                    {index === 2 && <Trophy className="w-4 h-4 text-amber-600" />}
+                    #{index + 1}
+                  </div>
+                </td>
+                <td>
+                  <div className="font-semibold">{player.playerName}</div>
+                </td>
+                <td>
+                  <div className={`font-mono font-semibold flex items-center gap-1 ${
+                    player.totalProfit > 0 ? 'text-success' : 
+                    player.totalProfit < 0 ? 'text-error' : 
+                    'text-base-content'
+                  }`}>
+                    {player.totalProfit > 0 && <TrendingUp className="w-4 h-4" />}
+                    {player.totalProfit < 0 && <TrendingDown className="w-4 h-4" />}
+                    ${player.totalProfit.toLocaleString()}
+                  </div>
+                </td>
+                <td>{player.gamesPlayed}</td>
+                <td>{player.handsWon}</td>
+                <td>
+                  <div className="text-sm opacity-70">
+                    {new Date(player.lastSeen).toLocaleDateString()}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

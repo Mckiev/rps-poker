@@ -34,6 +34,27 @@
    - Removed unused variables
    - Fixed async event handlers
 
+5. ✅ **Two-Word Game Names**
+   - Updated generateGameName() to use descriptive two-word combinations
+   - First words: Royal, Golden, Diamond, Thunder, Phoenix, etc.
+   - Second words: Table, Arena, Palace, Casino, Lounge, etc.
+   - No numbers in game names anymore
+
+6. ✅ **Game Deletion Feature**
+   - Added deleteGame mutation for games with ≤1 player
+   - Trash icon button on games with 1 or 0 players
+   - Confirmation dialog to prevent accidental deletion
+   - Proper cleanup of all related data (players, betting rounds, actions)
+
+7. ✅ **Session Statistics System**
+   - Added sessionStats table to track player performance
+   - Tracks total profit/loss, games played, hands won, last seen
+   - Integrated stats tracking into game logic (buy-ins, wins, game end)
+   - SessionStandings component with leaderboard table
+   - Shows profit with color coding (green=profit, red=loss)
+   - Displays trophy icons for top 3 players
+   - Trending up/down icons for profit visualization
+
 ### Key Design Changes:
 - Table: From 384px to 256px height
 - Border: From 8px amber to 4px gray
@@ -45,6 +66,8 @@
 ### Commits Made This Session:
 1. feat: implement authentic poker layout with chip stacks at player positions
 2. feat: modern dark compact UI design inspired by PokerStars
+3. feat: add two-word game names and game deletion for empty games
+4. feat: implement session statistics system with leaderboard
 
 ### Next Steps:
 - Test the compact design on different screen sizes
