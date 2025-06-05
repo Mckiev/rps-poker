@@ -82,8 +82,20 @@ export const joinGame = mutation({
       throw new Error("Game is full");
     }
 
-    // Check if name already taken
-    if (existingPlayers.some(p => p.name === playerName)) {
+    // Check if player already exists (allow rejoining)
+    const existingPlayer = existingPlayers.find(p => p.name === playerName);
+    
+    if (existingPlayer) {
+      // Player is rejoining - update their lastSeen and status
+      await ctx.db.patch(existingPlayer._id, {
+        lastSeen: Date.now(),
+        status: "active"
+      });
+      return existingPlayer._id;
+    }
+
+    // Check if name already taken by different active player
+    if (existingPlayers.some(p => p.name === playerName && p.status !== "out")) {
       throw new Error("Name already taken");
     }
 
@@ -844,6 +856,43 @@ function shuffleDeck(deck: string[]): string[] {
   }
   return shuffled;
 }
+
+export const leaveGame = mutation({
+  args: {
+    gameId: v.id("games"),
+    playerId: v.id("players"),
+  },
+  handler: async (ctx, { gameId, playerId }) => {
+    const player = await ctx.db.get(playerId);
+    if (!player) throw new Error("Player not found");
+
+    const game = await ctx.db.get(gameId);
+    if (!game) throw new Error("Game not found");
+
+    // Update player status to indicate they left
+    await ctx.db.patch(playerId, {
+      status: "out",
+      lastSeen: Date.now()
+    });
+
+    // If game is waiting and now has < 2 players, we might need to pause it
+    const remainingPlayers = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .filter((q) => q.neq(q.field("status"), "out"))
+      .collect();
+
+    if (remainingPlayers.length < 2 && game.status === "playing") {
+      // Pause the game if too few players remain
+      await ctx.db.patch(gameId, {
+        status: "waiting",
+        currentPhase: "ante"
+      });
+    }
+
+    return { success: true };
+  },
+});
 
 // Poker hand evaluation
 function evaluatePokerHand(cards: string[]): { rank: number; name: string; cards: string[] } {

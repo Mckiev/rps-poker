@@ -99,6 +99,7 @@ function PokerTable({ game }: { game: any }) {
   const { data: playerCards } = useSuspenseQuery(playerCardsQuery);
 
   const createGame = useMutation(api.games.createGame);
+  const leaveGame = useMutation(api.games.leaveGame);
 
   const handlePlayAgain = async () => {
     try {
@@ -118,18 +119,44 @@ function PokerTable({ game }: { game: any }) {
     void navigate({ to: "/" });
   };
 
+  const handleLeaveTable = async () => {
+    if (!currentPlayerId) return;
+    
+    try {
+      await leaveGame({ 
+        gameId: game._id as any, 
+        playerId: currentPlayerId as any 
+      });
+      void navigate({ to: "/" });
+    } catch (error) {
+      console.error("Failed to leave table:", error);
+      // Still navigate to lobby even if leave fails
+      void navigate({ to: "/" });
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       {/* Game Header */}
       <div className="text-center mb-3">
         <div className="flex justify-between items-center mb-2">
-          <button 
-            className="btn btn-ghost text-white"
-            onClick={handleReturnToLobby}
-          >
-            <Home className="w-4 h-4" />
-            Lobby
-          </button>
+          {currentPlayerId ? (
+            <button 
+              className="btn btn-ghost text-white hover:bg-red-600 hover:text-white"
+              onClick={handleLeaveTable}
+            >
+              <Home className="w-4 h-4" />
+              Leave Table
+            </button>
+          ) : (
+            <button 
+              className="btn btn-ghost text-white"
+              onClick={handleReturnToLobby}
+            >
+              <Home className="w-4 h-4" />
+              Lobby
+            </button>
+          )}
           
           <h1 className="text-lg font-bold text-white">
             {game.name || `Game ${game._id.slice(-6)}`} - Hand #{game.handNumber || 1} - {game.currentPhase.toUpperCase()}
