@@ -176,7 +176,10 @@ export const startGame = internalMutation({
       status: "playing",
       currentPhase: "preflop",
       pot: totalPot,
-      communityCards: [deck[cardIndex++], deck[cardIndex++], deck[cardIndex++]], // Flop ready
+      communityCards: [
+        deck[cardIndex++], deck[cardIndex++], deck[cardIndex++], // Flop (3 cards)
+        deck[cardIndex++], deck[cardIndex++] // Turn (1 card) + River (1 card)
+      ],
       phaseStartTime: Date.now(),
     });
 
@@ -264,8 +267,12 @@ export const completeBettingRound = internalMutation({
         // Call the raises
         playerBets.set(player._id, round.betAmount * rockCount);
       } else if (action === "paper") {
-        // Fold
-        await ctx.db.patch(player._id, { status: "folded" });
+        // Check if there are raises to call
+        if (rockCount > 0) {
+          // Fold - there are raises and player chooses paper
+          await ctx.db.patch(player._id, { status: "folded" });
+        }
+        // If rockCount === 0, this is a "check" - player stays active with no bet
       }
     }
 
@@ -310,17 +317,34 @@ export const advanceGamePhase = internalMutation({
     const game = await ctx.db.get(gameId);
     if (!game) return;
 
-    // Check if only one player remains active
-    const activePlayers = await ctx.db
+    // Check if only one player remains active or not folded
+    const allPlayers = await ctx.db
       .query("players")
       .withIndex("by_game", (q) => q.eq("gameId", gameId))
-      .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
+    
+    const playersInHand = allPlayers.filter(p => p.status === "active" || p.status === "folded");
+    const activePlayers = allPlayers.filter(p => p.status === "active");
 
-    if (activePlayers.length <= 1) {
-      // Hand over, award pot to remaining player and start new hand
+    if (activePlayers.length <= 1 && playersInHand.length > 1) {
+      // Hand over, award pot to remaining active player and start new hand
       if (activePlayers.length === 1) {
         const winner = activePlayers[0];
+        await ctx.db.patch(winner._id, { 
+          balance: winner.balance + game.pot 
+        });
+        await ctx.db.patch(gameId, { lastHandWinner: winner.name });
+      }
+      
+      // Start new hand after 20 seconds to show hand results
+      await ctx.scheduler.runAfter(20000, internal.games.startNewHand, { gameId });
+      return;
+    }
+    
+    // If we only have 1 player total (other is "out"), also end hand
+    if (playersInHand.length <= 1) {
+      if (playersInHand.length === 1) {
+        const winner = playersInHand[0];
         await ctx.db.patch(winner._id, { 
           balance: winner.balance + game.pot 
         });
@@ -466,7 +490,10 @@ export const startNewHand = internalMutation({
       handNumber: newHandNumber,
       currentPhase: "preflop",
       pot: totalPot,
-      communityCards: [deck[cardIndex++], deck[cardIndex++], deck[cardIndex++]], // Flop ready
+      communityCards: [
+        deck[cardIndex++], deck[cardIndex++], deck[cardIndex++], // Flop (3 cards)
+        deck[cardIndex++], deck[cardIndex++] // Turn (1 card) + River (1 card)
+      ],
       phaseStartTime: Date.now(),
       lastHandWinner: undefined,
     });
