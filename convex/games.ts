@@ -253,7 +253,8 @@ export const completeBettingRound = internalMutation({
     if (!game) return;
 
     let totalNewBets = 0;
-    for (const [playerId, betAmount] of playerBets) {
+    for (const [playerIdStr, betAmount] of playerBets) {
+      const playerId = playerIdStr as Id<"players">;
       const player = await ctx.db.get(playerId);
       if (!player) continue;
 
