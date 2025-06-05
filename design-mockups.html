@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Table Design Options</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .design-container {
+            margin-bottom: 40px;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .design-header {
+            background: #2a2a2a;
+            padding: 15px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .table-mockup {
+            padding: 20px;
+            height: 400px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Design 1: Modern Dark (PokerStars Inspired) */
+        .design1 {
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        }
+        
+        .design1 .table {
+            width: 600px;
+            height: 300px;
+            background: linear-gradient(135deg, #0f4c3a 0%, #1a6b54 50%, #0f4c3a 100%);
+            border-radius: 150px;
+            border: 8px solid #8b4513;
+            box-shadow: 
+                0 0 30px rgba(0,0,0,0.7),
+                inset 0 0 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .design1 .player-spot {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #333 0%, #555 100%);
+            border: 2px solid #666;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .design1 .player-spot:nth-child(1) { top: -30px; left: 50%; transform: translateX(-50%); }
+        .design1 .player-spot:nth-child(2) { top: 50%; right: -30px; transform: translateY(-50%); }
+        .design1 .player-spot:nth-child(3) { bottom: -30px; left: 50%; transform: translateX(-50%); }
+        .design1 .player-spot:nth-child(4) { top: 50%; left: -30px; transform: translateY(-50%); }
+        
+        .design1 .cards-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 8px;
+        }
+        
+        .card {
+            width: 32px;
+            height: 48px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .design1 .pot {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffd700;
+            color: #000;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Design 2: Classic Vegas */
+        .design2 {
+            background: radial-gradient(circle, #8b0000 0%, #4a0000 100%);
+        }
+        
+        .design2 .table {
+            width: 600px;
+            height: 300px;
+            background: 
+                radial-gradient(ellipse at center, #228B22 0%, #006400 50%, #004d00 100%);
+            border-radius: 150px;
+            border: 12px solid #8B4513;
+            box-shadow: 
+                0 0 40px rgba(255,215,0,0.3),
+                inset 0 0 60px rgba(0,0,0,0.4);
+            position: relative;
+        }
+        
+        .design2 .table::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            right: -6px;
+            bottom: -6px;
+            background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+            border-radius: 150px;
+            z-index: -1;
+        }
+        
+        .design2 .player-spot {
+            position: absolute;
+            width: 70px;
+            height: 50px;
+            background: linear-gradient(135deg, #8B4513 0%, #CD853F 100%);
+            border: 3px solid #FFD700;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFD700;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        
+        .design2 .player-spot:nth-child(1) { top: -25px; left: 50%; transform: translateX(-50%); }
+        .design2 .player-spot:nth-child(2) { top: 50%; right: -35px; transform: translateY(-50%); }
+        .design2 .player-spot:nth-child(3) { bottom: -25px; left: 50%; transform: translateX(-50%); }
+        .design2 .player-spot:nth-child(4) { top: 50%; left: -35px; transform: translateY(-50%); }
+        
+        .design2 .cards-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .design2 .card {
+            width: 36px;
+            height: 52px;
+            border: 2px solid #333;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        
+        .design2 .pot {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #8B4513;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 16px;
+            border: 2px solid #8B4513;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        /* Design 3: Minimalist Modern */
+        .design3 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .design3 .table {
+            width: 600px;
+            height: 300px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border-radius: 150px;
+            border: 4px solid #ecf0f1;
+            box-shadow: 
+                0 10px 30px rgba(0,0,0,0.3),
+                inset 0 0 30px rgba(255,255,255,0.1);
+            position: relative;
+        }
+        
+        .design3 .player-spot {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ecf0f1;
+            font-size: 10px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+        }
+        
+        .design3 .player-spot:nth-child(1) { top: -25px; left: 50%; transform: translateX(-50%); }
+        .design3 .player-spot:nth-child(2) { top: 50%; right: -25px; transform: translateY(-50%); }
+        .design3 .player-spot:nth-child(3) { bottom: -25px; left: 50%; transform: translateX(-50%); }
+        .design3 .player-spot:nth-child(4) { top: 50%; left: -25px; transform: translateY(-50%); }
+        
+        .design3 .cards-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 6px;
+        }
+        
+        .design3 .card {
+            width: 30px;
+            height: 44px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(5px);
+            background: rgba(255,255,255,0.9);
+        }
+        
+        .design3 .pot {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.2);
+            color: #ecf0f1;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .features {
+            background: #2a2a2a;
+            padding: 15px;
+            border-top: 1px solid #444;
+        }
+        
+        .features h4 {
+            margin: 0 0 10px 0;
+            color: #ffd700;
+        }
+        
+        .features ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .features li {
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center; margin-bottom: 30px;">🃏 Choose Your Poker Table Design</h1>
+    
+    <!-- Design 1: Modern Dark -->
+    <div class="design-container">
+        <div class="design-header">Design 1: Modern Dark (PokerStars Inspired)</div>
+        <div class="table-mockup design1">
+            <div class="table">
+                <div class="player-spot">P1</div>
+                <div class="player-spot">P2</div>
+                <div class="player-spot">P3</div>
+                <div class="player-spot">P4</div>
+                <div class="cards-area">
+                    <div class="card">A♠</div>
+                    <div class="card">K♥</div>
+                    <div class="card">Q♣</div>
+                    <div class="card">🃏</div>
+                    <div class="card">🃏</div>
+                </div>
+                <div class="pot">$240</div>
+            </div>
+        </div>
+        <div class="features">
+            <h4>Features:</h4>
+            <ul>
+                <li>Dark theme with green felt gradient</li>
+                <li>Minimalist player spots with subtle gradients</li>
+                <li>Clean typography and modern shadows</li>
+                <li>Professional PokerStars-inspired aesthetic</li>
+                <li>Compact layout for smaller screens</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Design 2: Classic Vegas -->
+    <div class="design-container">
+        <div class="design-header">Design 2: Classic Vegas Casino</div>
+        <div class="table-mockup design2">
+            <div class="table">
+                <div class="player-spot">P1</div>
+                <div class="player-spot">P2</div>
+                <div class="player-spot">P3</div>
+                <div class="player-spot">P4</div>
+                <div class="cards-area">
+                    <div class="card">A♠</div>
+                    <div class="card">K♥</div>
+                    <div class="card">Q♣</div>
+                    <div class="card">🃏</div>
+                    <div class="card">🃏</div>
+                </div>
+                <div class="pot">$240</div>
+            </div>
+        </div>
+        <div class="features">
+            <h4>Features:</h4>
+            <ul>
+                <li>Classic casino colors (red, gold, green)</li>
+                <li>Rich golden borders and accents</li>
+                <li>Bold shadows and luxury feel</li>
+                <li>Traditional Vegas casino aesthetic</li>
+                <li>High contrast for easy visibility</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Design 3: Minimalist Modern -->
+    <div class="design-container">
+        <div class="design-header">Design 3: Minimalist Modern</div>
+        <div class="table-mockup design3">
+            <div class="table">
+                <div class="player-spot">P1</div>
+                <div class="player-spot">P2</div>
+                <div class="player-spot">P3</div>
+                <div class="player-spot">P4</div>
+                <div class="cards-area">
+                    <div class="card">A♠</div>
+                    <div class="card">K♥</div>
+                    <div class="card">Q♣</div>
+                    <div class="card">🃏</div>
+                    <div class="card">🃏</div>
+                </div>
+                <div class="pot">$240</div>
+            </div>
+        </div>
+        <div class="features">
+            <h4>Features:</h4>
+            <ul>
+                <li>Sleek gradient backgrounds</li>
+                <li>Glass morphism effects with blur</li>
+                <li>Clean geometric shapes</li>
+                <li>Modern app-like interface</li>
+                <li>Subtle transparency effects</li>
+            </ul>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px; padding: 20px; background: #2a2a2a; border-radius: 8px;">
+        <h3>Which design do you prefer?</h3>
+        <p style="color: #ccc;">Let me know which design you'd like me to implement: 1, 2, or 3</p>
+    </div>
+</body>
+</html>

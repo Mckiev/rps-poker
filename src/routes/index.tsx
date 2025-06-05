@@ -70,7 +70,7 @@ function HomePage() {
 
           {showCreateGame && (
             <CreateGameForm playerName={playerName} onSuccess={(gameId) => {
-              navigate({ to: `/game/${gameId}` });
+              void navigate({ to: `/game/${gameId}` });
             }} />
           )}
 
@@ -84,19 +84,13 @@ function HomePage() {
 function PlayerNameForm({ onSubmit }: { onSubmit: (name: string) => void }) {
   const [name, setName] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onSubmit(name.trim());
-    }
-  };
 
   return (
     <div className="max-w-md mx-auto">
       <div className="card bg-base-200 shadow-lg">
         <div className="card-body">
           <h2 className="card-title">Enter Your Name</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onSubmit(name.trim()); } }} className="space-y-4">
             <div className="form-control">
               <input
                 type="text"
@@ -154,7 +148,7 @@ function CreateGameForm({
     <div className="card bg-base-200 shadow-lg max-w-md mx-auto">
       <div className="card-body">
         <h3 className="card-title">Create New Game</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="form-control">
             <label className="label">
               <span className="label-text">Ante Amount</span>
@@ -200,7 +194,7 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
     try {
       const playerId = await joinGame({ gameId: gameId as any, playerName });
       localStorage.setItem(`player-${gameId}`, playerId);
-      navigate({ to: `/game/${gameId}` });
+      void navigate({ to: `/game/${gameId}` });
     } catch (error) {
       console.error("Failed to join game:", error);
       alert(error instanceof Error ? error.message : "Failed to join game");
@@ -234,7 +228,7 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
                   </div>
                   <button 
                     className="btn btn-primary"
-                    onClick={() => handleJoinGame(game._id)}
+                    onClick={() => void handleJoinGame(game._id)}
                     disabled={game.playerCount >= game.maxPlayers}
                   >
                     {game.playerCount >= game.maxPlayers ? "Full" : "Join"}
