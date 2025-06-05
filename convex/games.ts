@@ -19,7 +19,7 @@ export const createGame = mutation({
       maxPlayers,
     });
 
-    await ctx.db.insert("players", {
+    const playerId = await ctx.db.insert("players", {
       gameId,
       name: playerName,
       balance: 1000, // Starting balance
@@ -29,7 +29,7 @@ export const createGame = mutation({
       lastSeen: Date.now(),
     });
 
-    return gameId;
+    return { gameId, playerId };
   },
 });
 
@@ -210,8 +210,160 @@ export const processBettingTimeout = internalMutation({
 export const completeBettingRound = internalMutation({
   args: { roundId: v.id("bettingRounds") },
   handler: async (ctx, { roundId }) => {
-    // Implementation for completing betting round and advancing game
-    // This will be expanded in the next iteration
+    const round = await ctx.db.get(roundId);
+    if (!round || round.status !== "active") return;
+
+    // Get all player actions for this round
+    const actions = await ctx.db
+      .query("playerActions")
+      .withIndex("by_round", (q) => q.eq("bettingRoundId", roundId))
+      .collect();
+
+    // Get all active players
+    const activePlayers = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", round.gameId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    // Auto-fold players who didn't act (default to "paper" = fold)
+    const playerActionsMap = new Map(actions.map(a => [a.playerId, a.action]));
+    
+    // Count rock actions to determine total bet amount
+    let rockCount = 0;
+    const playerBets = new Map<string, number>();
+    
+    for (const player of activePlayers) {
+      const action = playerActionsMap.get(player._id) || "paper"; // Default to fold
+      
+      if (action === "rock") {
+        rockCount++;
+        playerBets.set(player._id, round.betAmount);
+      } else if (action === "scissors" && rockCount > 0) {
+        // Call the raises
+        playerBets.set(player._id, round.betAmount * rockCount);
+      } else if (action === "paper") {
+        // Fold
+        await ctx.db.patch(player._id, { status: "folded" });
+      }
+    }
+
+    // Process bets and update pot
+    const game = await ctx.db.get(round.gameId);
+    if (!game) return;
+
+    let totalNewBets = 0;
+    for (const [playerId, betAmount] of playerBets) {
+      const player = await ctx.db.get(playerId);
+      if (!player) continue;
+
+      const actualBet = Math.min(betAmount, player.balance);
+      const newBalance = player.balance - actualBet;
+      
+      await ctx.db.patch(playerId, { balance: newBalance });
+      if (newBalance === 0) {
+        await ctx.db.patch(playerId, { status: "out" });
+      }
+      
+      totalNewBets += actualBet;
+    }
+
+    // Update pot
+    const newPot = game.pot + totalNewBets;
+    await ctx.db.patch(round.gameId, { pot: newPot });
+
+    // Mark round as completed
+    await ctx.db.patch(roundId, { status: "completed" });
+
+    // Advance to next phase
+    await ctx.scheduler.runAfter(0, internal.games.advanceGamePhase, { 
+      gameId: round.gameId 
+    });
+  },
+});
+
+export const advanceGamePhase = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game) return;
+
+    // Check if only one player remains active
+    const activePlayers = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    if (activePlayers.length <= 1) {
+      // Game over, award pot to remaining player
+      if (activePlayers.length === 1) {
+        const winner = activePlayers[0];
+        await ctx.db.patch(winner._id, { 
+          balance: winner.balance + game.pot 
+        });
+      }
+      
+      await ctx.db.patch(gameId, { 
+        status: "finished",
+        currentPhase: "showdown",
+        pot: 0
+      });
+      return;
+    }
+
+    // Advance to next phase
+    const phaseOrder: typeof game.currentPhase[] = ["preflop", "flop", "turn", "river", "showdown"];
+    const currentIndex = phaseOrder.indexOf(game.currentPhase);
+    
+    if (currentIndex >= phaseOrder.length - 1) {
+      // Showdown
+      await ctx.scheduler.runAfter(0, internal.games.processShowdown, { gameId });
+      return;
+    }
+
+    const nextPhase = phaseOrder[currentIndex + 1];
+    await ctx.db.patch(gameId, { 
+      currentPhase: nextPhase,
+      phaseStartTime: Date.now()
+    });
+
+    // Start next betting round
+    if (nextPhase !== "showdown") {
+      await ctx.scheduler.runAfter(0, internal.games.startBettingRound, { 
+        gameId, 
+        phase: nextPhase as any
+      });
+    }
+  },
+});
+
+export const processShowdown = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game) return;
+
+    const activePlayers = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    if (activePlayers.length === 0) return;
+
+    // Import poker evaluation (this would be in a real implementation)
+    // For now, just award to first player
+    const winner = activePlayers[0];
+    await ctx.db.patch(winner._id, { 
+      balance: winner.balance + game.pot 
+    });
+
+    await ctx.db.patch(gameId, { 
+      status: "finished",
+      currentPhase: "showdown",
+      pot: 0
+    });
   },
 });
 

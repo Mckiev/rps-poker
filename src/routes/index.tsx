@@ -117,11 +117,14 @@ function CreateGameForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const gameId = await createGame({ 
+      const result = await createGame({ 
         playerName, 
         anteAmount, 
         maxPlayers 
       });
+      const gameId = result.gameId;
+      const playerId = result.playerId;
+      localStorage.setItem(`player-${gameId}`, playerId);
       onSuccess(gameId);
     } catch (error) {
       console.error("Failed to create game:", error);
@@ -176,7 +179,8 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
 
   const handleJoinGame = async (gameId: string) => {
     try {
-      await joinGame({ gameId, playerName });
+      const playerId = await joinGame({ gameId, playerName });
+      localStorage.setItem(`player-${gameId}`, playerId);
       navigate({ to: `/game/${gameId}` });
     } catch (error) {
       console.error("Failed to join game:", error);

@@ -109,8 +109,9 @@ function BettingInterface({ round, gameId }: { round: any; gameId: string }) {
   const [timeLeft, setTimeLeft] = useState(30);
   const makeAction = useMutation(api.actions.makeAction);
   
-  // Get current player - this is simplified, in a real app you'd track this properly
-  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  // For MVP, we'll use localStorage to track current player
+  // In production, you'd want proper session management
+  const currentPlayerId = localStorage.getItem(`player-${gameId}`);
   
   useEffect(() => {
     const timer = setInterval(() => {
