@@ -97,9 +97,15 @@ export const joinGame = mutation({
       lastSeen: Date.now(),
     });
 
-    // Start game if we have at least 2 players
-    if (existingPlayers.length >= 1) {
+    // Start game logic
+    const totalPlayers = existingPlayers.length + 1; // +1 for the new player
+    
+    if (totalPlayers >= game.maxPlayers) {
+      // Game is full, start immediately
       await ctx.scheduler.runAfter(0, internal.games.startGame, { gameId });
+    } else if (totalPlayers >= 2) {
+      // Wait 10 seconds for more players to join, then start if we still have 2+
+      await ctx.scheduler.runAfter(10000, internal.games.checkAndStartGame, { gameId });
     }
 
     return playerId;
@@ -130,13 +136,14 @@ export const getGame = query({
 export const getAvailableGames = query({
   args: {},
   handler: async (ctx) => {
-    const games = await ctx.db
+    // Show games that are waiting OR playing but not full
+    const allGames = await ctx.db
       .query("games")
-      .filter((q) => q.eq(q.field("status"), "waiting"))
+      .filter((q) => q.neq(q.field("status"), "finished"))
       .collect();
 
     const gamesWithPlayerCount = await Promise.all(
-      games.map(async (game) => {
+      allGames.map(async (game) => {
         const playerCount = await ctx.db
           .query("players")
           .withIndex("by_game", (q) => q.eq("gameId", game._id))
@@ -147,7 +154,26 @@ export const getAvailableGames = query({
       })
     );
 
-    return gamesWithPlayerCount;
+    // Only return games that have room for more players
+    return gamesWithPlayerCount.filter(game => game.playerCount < game.maxPlayers);
+  },
+});
+
+export const checkAndStartGame = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || game.status !== "waiting") return;
+
+    const players = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .collect();
+
+    // Only start if we still have 2+ players and game hasn't started yet
+    if (players.length >= 2) {
+      await ctx.scheduler.runAfter(0, internal.games.startGame, { gameId });
+    }
   },
 });
 
@@ -607,14 +633,16 @@ export const deleteGame = mutation({
       await ctx.db.delete(round._id);
     }
 
-    // Delete all actions for this game
-    const actions = await ctx.db
-      .query("actions")
-      .filter((q) => q.eq(q.field("gameId"), gameId))
-      .collect();
-    
-    for (const action of actions) {
-      await ctx.db.delete(action._id);
+    // Delete all player actions for this game's betting rounds
+    for (const round of bettingRounds) {
+      const actions = await ctx.db
+        .query("playerActions")
+        .withIndex("by_round", (q) => q.eq("bettingRoundId", round._id))
+        .collect();
+      
+      for (const action of actions) {
+        await ctx.db.delete(action._id);
+      }
     }
 
     // Finally delete the game

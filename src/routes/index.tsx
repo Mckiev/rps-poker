@@ -2,20 +2,15 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Gamepad2, Plus, Users, Trash2, Trophy, TrendingUp, TrendingDown } from "lucide-react";
+import { Gamepad2, Plus, Users, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 
 const availableGamesQueryOptions = convexQuery(api.games.getAvailableGames, {});
-const sessionStandingsQueryOptions = convexQuery(api.sessionStats.getSessionStandings, {});
 
 export const Route = createFileRoute("/")({
-  loader: async ({ context: { queryClient } }) => {
-    await Promise.all([
-      queryClient.ensureQueryData(availableGamesQueryOptions),
-      queryClient.ensureQueryData(sessionStandingsQueryOptions),
-    ]);
-  },
+  loader: async ({ context: { queryClient } }) =>
+    await queryClient.ensureQueryData(availableGamesQueryOptions),
   component: HomePage,
 });
 
@@ -80,7 +75,6 @@ function HomePage() {
           )}
 
           <AvailableGamesList playerName={playerName} />
-          <SessionStandings />
         </div>
       )}
     </div>
@@ -268,85 +262,6 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function SessionStandings() {
-  const { data: standings } = useSuspenseQuery(sessionStandingsQueryOptions);
-
-  if (standings.length === 0) {
-    return (
-      <div>
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Trophy className="w-6 h-6" />
-          Session Standings
-        </h2>
-        <div className="card bg-base-200">
-          <div className="card-body text-center">
-            <p className="opacity-70">No session data yet. Play some games to see standings!</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-        <Trophy className="w-6 h-6" />
-        Session Standings
-      </h2>
-      
-      <div className="overflow-x-auto">
-        <table className="table table-zebra">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Player</th>
-              <th>Total Profit</th>
-              <th>Games</th>
-              <th>Hands Won</th>
-              <th>Last Seen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((player, index) => (
-              <tr key={player._id}>
-                <td>
-                  <div className="flex items-center gap-2">
-                    {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
-                    {index === 1 && <Trophy className="w-4 h-4 text-gray-400" />}
-                    {index === 2 && <Trophy className="w-4 h-4 text-amber-600" />}
-                    #{index + 1}
-                  </div>
-                </td>
-                <td>
-                  <div className="font-semibold">{player.playerName}</div>
-                </td>
-                <td>
-                  <div className={`font-mono font-semibold flex items-center gap-1 ${
-                    player.totalProfit > 0 ? 'text-success' : 
-                    player.totalProfit < 0 ? 'text-error' : 
-                    'text-base-content'
-                  }`}>
-                    {player.totalProfit > 0 && <TrendingUp className="w-4 h-4" />}
-                    {player.totalProfit < 0 && <TrendingDown className="w-4 h-4" />}
-                    ${player.totalProfit.toLocaleString()}
-                  </div>
-                </td>
-                <td>{player.gamesPlayed}</td>
-                <td>{player.handsWon}</td>
-                <td>
-                  <div className="text-sm opacity-70">
-                    {new Date(player.lastSeen).toLocaleDateString()}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

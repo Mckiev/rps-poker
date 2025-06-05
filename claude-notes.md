@@ -55,6 +55,21 @@
    - Displays trophy icons for top 3 players
    - Trending up/down icons for profit visualization
 
+8. ✅ **Fixed 3-Player Game Issues**
+   - Fixed disappearing games problem in getAvailableGames query
+   - Changed to show games that are "waiting" OR "playing" but not full
+   - Added delayed game start logic (10 seconds for more players to join)
+   - Fixed immediate auto-start preventing 3rd player from joining
+   - Added checkAndStartGame function for better game timing
+   - Fixed TypeScript error in deleteGame action cleanup
+
+9. ✅ **Session Standings on Game Table**
+   - Moved SessionStandings component from lobby to game page
+   - Added session stats query to game page loader
+   - Styled for dark theme with proper spacing
+   - Shows standings below the poker table during gameplay
+   - Cleaned up lobby page imports and component references
+
 ### Key Design Changes:
 - Table: From 384px to 256px height
 - Border: From 8px amber to 4px gray
@@ -68,6 +83,8 @@
 2. feat: modern dark compact UI design inspired by PokerStars
 3. feat: add two-word game names and game deletion for empty games
 4. feat: implement session statistics system with leaderboard
+5. fix: resolve 3-player game issues and disappearing games problem
+6. feat: move session standings to game table for better visibility
 
 ### Next Steps:
 - Test the compact design on different screen sizes

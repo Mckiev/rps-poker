@@ -2,7 +2,7 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Clock, DollarSign, Users, Home, RotateCcw } from "lucide-react";
+import { Clock, DollarSign, Users, Home, RotateCcw, Trophy, TrendingUp, TrendingDown } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 
@@ -10,7 +10,11 @@ export const Route = createFileRoute("/game/$gameId")({
   loader: async ({ context: { queryClient }, params: { gameId } }) => {
     if (!gameId) throw new Error("Game ID is required");
     const gameQueryOptions = convexQuery(api.games.getGame, { gameId: gameId as any });
-    await queryClient.ensureQueryData(gameQueryOptions);
+    const sessionStandingsQueryOptions = convexQuery(api.sessionStats.getSessionStandings, {});
+    await Promise.all([
+      queryClient.ensureQueryData(gameQueryOptions),
+      queryClient.ensureQueryData(sessionStandingsQueryOptions),
+    ]);
   },
   component: GamePage,
 });
@@ -252,6 +256,11 @@ function PokerTable({ game }: { game: any }) {
           </div>
         )}
       </div>
+
+      {/* Session Standings */}
+      <div className="mt-6">
+        <SessionStandings />
+      </div>
     </div>
   );
 }
@@ -476,6 +485,86 @@ function BettingInterface({ round, playerId }: { round: any; playerId: string })
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SessionStandings() {
+  const sessionStandingsQueryOptions = convexQuery(api.sessionStats.getSessionStandings, {});
+  const { data: standings } = useSuspenseQuery(sessionStandingsQueryOptions);
+
+  if (standings.length === 0) {
+    return (
+      <div>
+        <h2 className="text-xl font-bold mb-3 flex items-center gap-2 text-white">
+          <Trophy className="w-5 h-5" />
+          Session Standings
+        </h2>
+        <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-4 border border-gray-700">
+          <p className="text-gray-400 text-center">No session data yet. Play some games to see standings!</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-3 flex items-center gap-2 text-white">
+        <Trophy className="w-5 h-5" />
+        Session Standings
+      </h2>
+      
+      <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-800/50">
+              <tr className="text-gray-300 text-sm">
+                <th className="px-3 py-2 text-left">Rank</th>
+                <th className="px-3 py-2 text-left">Player</th>
+                <th className="px-3 py-2 text-right">Profit</th>
+                <th className="px-3 py-2 text-center">Games</th>
+                <th className="px-3 py-2 text-center">Wins</th>
+                <th className="px-3 py-2 text-center">Last Seen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {standings.map((player, index) => (
+                <tr key={player._id} className="border-t border-gray-700/50 hover:bg-gray-800/30">
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2 text-white">
+                      {index === 0 && <Trophy className="w-3 h-3 text-yellow-500" />}
+                      {index === 1 && <Trophy className="w-3 h-3 text-gray-400" />}
+                      {index === 2 && <Trophy className="w-3 h-3 text-amber-600" />}
+                      <span className="text-sm font-medium">#{index + 1}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="font-medium text-white text-sm">{player.playerName}</div>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <div className={`font-mono font-semibold flex items-center justify-end gap-1 text-sm ${
+                      player.totalProfit > 0 ? 'text-green-400' : 
+                      player.totalProfit < 0 ? 'text-red-400' : 
+                      'text-gray-300'
+                    }`}>
+                      {player.totalProfit > 0 && <TrendingUp className="w-3 h-3" />}
+                      {player.totalProfit < 0 && <TrendingDown className="w-3 h-3" />}
+                      ${player.totalProfit.toLocaleString()}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-center text-gray-300 text-sm">{player.gamesPlayed}</td>
+                  <td className="px-3 py-2 text-center text-gray-300 text-sm">{player.handsWon}</td>
+                  <td className="px-3 py-2 text-center">
+                    <div className="text-xs text-gray-400">
+                      {new Date(player.lastSeen).toLocaleDateString()}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
