@@ -1,6 +1,6 @@
-# Full-Stack Web Application Starter Template
+# RPS Poker
 
-This starter template accelerates full-stack web app development, emphasizing an excellent Developer Experience (DX), especially for LLM-assisted coding. It integrates Convex, TanStack Router, Clerk, Vite, React, and Tailwind CSS to provide a robust foundation.
+Rock Paper Scissors Poker - A fast-paced Texas Hold'em variant with simultaneous Rock Paper Scissors betting mechanics. Built with React, Vite, Convex, and TanStack Router.
 
 ## Quick Start for Humans
 
