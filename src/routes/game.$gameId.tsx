@@ -163,8 +163,8 @@ function PokerTable({ game }: { game: any }) {
           <div className="absolute inset-3 bg-gradient-to-br from-green-800 to-green-600 rounded-full border-2 border-green-500 shadow-inner">
             
             {/* Community Cards Area */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="text-center mb-2">
+            <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <div className="text-center mb-3">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <h3 className="text-white font-medium text-sm">Community Cards</h3>
                   {game.status === "playing" && (
@@ -220,60 +220,60 @@ function PokerTable({ game }: { game: any }) {
                   )}
                 </div>
               </div>
-              
-              {/* Pot Display with Chip Visualization */}
-              <div className="text-center mt-4">
-                <div className="flex flex-col items-center">
-                  {/* Chip Stack Visualization */}
-                  <div className="relative mb-2 h-8">
-                    {/* Create stacked chips based on pot size */}
-                    {Array.from({ length: Math.min(Math.floor(game.pot / 50) + 1, 8) }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`absolute w-10 h-3 rounded-full shadow-lg transition-all duration-500 hover:scale-110 ${
-                          i % 3 === 0 ? 'bg-gradient-to-b from-yellow-400 to-yellow-600 border border-yellow-300' :
-                          i % 3 === 1 ? 'bg-gradient-to-b from-red-400 to-red-600 border border-red-300' :
-                          'bg-gradient-to-b from-blue-400 to-blue-600 border border-blue-300'
-                        }`}
-                        style={{
-                          bottom: `${i * 2}px`,
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          zIndex: 10 - i,
-                          animationDelay: `${i * 100}ms`
-                        }}
-                      />
-                    ))}
-                    
-                    {/* Glowing effect for big pots */}
-                    {game.pot >= 200 && (
-                      <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-lg animate-pulse" />
-                    )}
-                  </div>
+            </div>
+
+            {/* Pot Display with Chip Visualization - Separate positioning */}
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+              <div className="flex flex-col items-center">
+                {/* Chip Stack Visualization */}
+                <div className="relative mb-2 h-6">
+                  {/* Create stacked chips based on pot size */}
+                  {Array.from({ length: Math.min(Math.floor(game.pot / 50) + 1, 6) }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`absolute w-8 h-2 rounded-full shadow-md transition-all duration-500 hover:scale-110 ${
+                        i % 3 === 0 ? 'bg-gradient-to-b from-yellow-400 to-yellow-600 border border-yellow-300' :
+                        i % 3 === 1 ? 'bg-gradient-to-b from-red-400 to-red-600 border border-red-300' :
+                        'bg-gradient-to-b from-blue-400 to-blue-600 border border-blue-300'
+                      }`}
+                      style={{
+                        bottom: `${i * 1.5}px`,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 10 - i,
+                        animationDelay: `${i * 100}ms`
+                      }}
+                    />
+                  ))}
                   
-                  {/* Pot Amount Label */}
-                  <div className={`px-4 py-2 rounded-full font-bold text-lg shadow-xl border-2 transition-all duration-300 ${
-                    game.pot >= 500 ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white border-orange-300 animate-pulse scale-110' :
-                    game.pot >= 200 ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-yellow-300 scale-105' :
-                    'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border-yellow-300'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <span className={game.pot >= 500 ? 'text-yellow-200' : 'text-yellow-900'}>
-                        {game.pot >= 500 ? '🔥' : game.pot >= 200 ? '💎' : '💰'}
-                      </span>
-                      <span>POT: ${game.pot.toLocaleString()}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Pot Growth Animation */}
-                  {game.pot > 0 && (
-                    <div className="mt-1 text-xs text-yellow-200 opacity-75">
-                      {game.pot >= 500 ? 'MASSIVE POT! 🔥' :
-                       game.pot >= 200 ? 'Big Pot! 💎' :
-                       'Total Prize Pool'}
-                    </div>
+                  {/* Glowing effect for big pots */}
+                  {game.pot >= 200 && (
+                    <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-sm animate-pulse" />
                   )}
                 </div>
+                
+                {/* Pot Amount Label - Smaller */}
+                <div className={`px-3 py-1 rounded-full font-bold text-sm shadow-lg border transition-all duration-300 ${
+                  game.pot >= 500 ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white border-orange-300 animate-pulse scale-105' :
+                  game.pot >= 200 ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-yellow-300' :
+                  'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border-yellow-300'
+                }`}>
+                  <div className="flex items-center gap-1">
+                    <span className={`text-xs ${game.pot >= 500 ? 'text-yellow-200' : 'text-yellow-900'}`}>
+                      {game.pot >= 500 ? '🔥' : game.pot >= 200 ? '💎' : '💰'}
+                    </span>
+                    <span>POT: ${game.pot.toLocaleString()}</span>
+                  </div>
+                </div>
+                
+                {/* Pot Growth Animation - Smaller */}
+                {game.pot > 0 && (
+                  <div className="mt-1 text-xs text-yellow-200 opacity-75">
+                    {game.pot >= 500 ? 'MASSIVE! 🔥' :
+                     game.pot >= 200 ? 'Big Pot! 💎' :
+                     'Prize Pool'}
+                  </div>
+                )}
               </div>
             </div>
 
