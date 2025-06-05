@@ -198,7 +198,7 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
 
   const handleJoinGame = async (gameId: string) => {
     try {
-      const playerId = await joinGame({ gameId, playerName });
+      const playerId = await joinGame({ gameId: gameId as any, playerName });
       localStorage.setItem(`player-${gameId}`, playerId);
       navigate({ to: `/game/${gameId}` });
     } catch (error) {

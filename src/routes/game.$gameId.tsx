@@ -177,7 +177,6 @@ function PokerTable({ game }: { game: any }) {
           <BettingInterface 
             round={currentRound} 
             playerId={currentPlayerId}
-            gameId={game._id}
           />
         </div>
       )}
@@ -335,7 +334,7 @@ function PlayerSeat({ player, isCurrentPlayer }: { player: any; isCurrentPlayer:
   );
 }
 
-function BettingInterface({ round, playerId, gameId }: { round: any; playerId: string; gameId: string }) {
+function BettingInterface({ round, playerId }: { round: any; playerId: string }) {
   const [selectedAction, setSelectedAction] = useState<"paper" | "scissors" | "rock" | null>(null);
   const [timeLeft, setTimeLeft] = useState(30);
   const makeAction = useMutation(api.actions.makeAction);
