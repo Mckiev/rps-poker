@@ -141,6 +141,66 @@ export const getGame = query({
   },
 });
 
+export const getOrCreateMainTable = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Look for existing main table
+    const existingTable = await ctx.db
+      .query("games")
+      .filter((q) => q.eq(q.field("name"), "The Main Table"))
+      .first();
+
+    if (existingTable) {
+      // Get player count for existing table
+      const players = await ctx.db
+        .query("players")
+        .withIndex("by_game", (q) => q.eq("gameId", existingTable._id))
+        .collect();
+      
+      return { ...existingTable, playerCount: players.length };
+    }
+
+    // Create the main table if it doesn't exist
+    const mainTableId = await ctx.db.insert("games", {
+      status: "waiting",
+      currentPhase: "ante",
+      pot: 0,
+      communityCards: [],
+      anteAmount: 10,
+      maxPlayers: 8,
+      handNumber: 1,
+      name: "The Main Table",
+      createdAt: Date.now(),
+    });
+
+    const mainTable = await ctx.db.get(mainTableId);
+    return { ...mainTable!, playerCount: 0 };
+  },
+});
+
+export const getMainTable = query({
+  args: {},
+  handler: async (ctx) => {
+    // Look for existing main table
+    const existingTable = await ctx.db
+      .query("games")
+      .filter((q) => q.eq(q.field("name"), "The Main Table"))
+      .first();
+
+    if (existingTable) {
+      // Get player count for existing table
+      const players = await ctx.db
+        .query("players")
+        .withIndex("by_game", (q) => q.eq("gameId", existingTable._id))
+        .collect();
+      
+      return { ...existingTable, playerCount: players.length };
+    }
+
+    return null;
+  },
+});
+
 export const getAvailableGames = query({
   args: {},
   handler: async (ctx) => {

@@ -2,15 +2,16 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Gamepad2, Plus, Users, Trash2, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Gamepad2, Users } from "lucide-react";
+import { useState, useEffect } from "react";
 import { api } from "../../convex/_generated/api";
 
-const availableGamesQueryOptions = convexQuery(api.games.getAvailableGames, {});
+const getMainTableQueryOptions = convexQuery(api.games.getMainTable, {});
 
 export const Route = createFileRoute("/")({
-  loader: async ({ context: { queryClient } }) =>
-    await queryClient.ensureQueryData(availableGamesQueryOptions),
+  loader: async ({ context: { queryClient } }) => {
+    return await queryClient.ensureQueryData(getMainTableQueryOptions);
+  },
   component: HomePage,
 });
 
@@ -19,8 +20,6 @@ function HomePage() {
     // Load saved nickname from localStorage
     return localStorage.getItem("rps-poker-nickname") || "";
   });
-  const [showCreateGame, setShowCreateGame] = useState(false);
-  const navigate = useNavigate();
 
   // Save nickname to localStorage whenever it changes
   const updatePlayerName = (name: string) => {
@@ -58,32 +57,16 @@ function HomePage() {
             </button>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button 
-              className="btn btn-primary btn-lg"
-              onClick={() => setShowCreateGame(!showCreateGame)}
-            >
-              <Plus className="w-5 h-5" />
-              Create New Game
-            </button>
-          </div>
-
-          {showCreateGame && (
-            <CreateGameForm playerName={playerName} onSuccess={(gameId) => {
-              void navigate({ to: `/game/${gameId}` });
-            }} />
-          )}
-
-          <AvailableGamesList playerName={playerName} />
+          <MainTable playerName={playerName} />
 
           {/* Version Info */}
           <div className="mt-8 text-center">
             <div className="inline-block bg-gray-800 border border-gray-600 px-4 py-2 rounded-lg text-sm text-gray-300 shadow-lg">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="font-medium">Latest update: Jun 5, 2025 2:56 PM PDT</span>
+                <span className="font-medium">Latest update: Jun 5, 2025 3:06 PM PDT</span>
               </div>
-              <div className="text-xs text-gray-400 mt-1">Added pot visualization with chip stacks on poker table</div>
+              <div className="text-xs text-gray-400 mt-1">Simplified to single main table - removed game creation</div>
             </div>
           </div>
         </div>
@@ -127,175 +110,131 @@ function PlayerNameForm({ onSubmit }: { onSubmit: (name: string) => void }) {
   );
 }
 
-function CreateGameForm({ 
-  playerName, 
-  onSuccess 
-}: { 
-  playerName: string; 
-  onSuccess: (gameId: string) => void;
-}) {
-  const [anteAmount, setAnteAmount] = useState(10);
-  const [maxPlayers, setMaxPlayers] = useState(6);
-  const createGame = useMutation(api.games.createGame);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const result = await createGame({ 
-        playerName, 
-        anteAmount, 
-        maxPlayers 
-      });
-      const gameId = result.gameId;
-      const playerId = result.playerId;
-      localStorage.setItem(`player-${gameId}`, playerId);
-      onSuccess(gameId);
-    } catch (error) {
-      console.error("Failed to create game:", error);
-    }
-  };
-
-  return (
-    <div className="card bg-base-200 shadow-lg max-w-md mx-auto">
-      <div className="card-body">
-        <h3 className="card-title">Create New Game</h3>
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Ante Amount</span>
-            </label>
-            <input
-              type="number"
-              className="input input-bordered"
-              value={anteAmount}
-              onChange={(e) => setAnteAmount(Number(e.target.value))}
-              min={1}
-              max={100}
-            />
-          </div>
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Max Players</span>
-            </label>
-            <select 
-              className="select select-bordered"
-              value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
-            >
-              {[2, 3, 4, 5, 6, 7, 8].map(num => (
-                <option key={num} value={num}>{num} players</option>
-              ))}
-            </select>
-          </div>
-          <button type="submit" className="btn btn-primary btn-block">
-            Create Game
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function AvailableGamesList({ playerName }: { playerName: string }) {
-  const { data: games } = useSuspenseQuery(availableGamesQueryOptions);
+function MainTable({ playerName }: { playerName: string }) {
+  const { data: mainTable } = useSuspenseQuery(getMainTableQueryOptions);
+  const getOrCreateMainTable = useMutation(api.games.getOrCreateMainTable);
   const joinGame = useMutation(api.games.joinGame);
-  const deleteGame = useMutation(api.games.deleteGame);
-  const cleanupStaleGames = useMutation(api.games.cleanupStaleGames);
   const navigate = useNavigate();
 
-  const handleJoinGame = async (gameId: string) => {
+  useEffect(() => {
+    if (!mainTable) {
+      void getOrCreateMainTable({});
+    }
+  }, [mainTable, getOrCreateMainTable]);
+
+  const handleJoinTable = async () => {
+    if (!mainTable) return;
+    
     try {
-      const playerId = await joinGame({ gameId: gameId as any, playerName });
-      localStorage.setItem(`player-${gameId}`, playerId);
-      void navigate({ to: `/game/${gameId}` });
+      const playerId = await joinGame({ gameId: mainTable._id as any, playerName });
+      localStorage.setItem(`player-${mainTable._id}`, playerId);
+      void navigate({ to: `/game/${mainTable._id}` });
     } catch (error) {
-      console.error("Failed to join game:", error);
-      alert(error instanceof Error ? error.message : "Failed to join game");
+      console.error("Failed to join table:", error);
+      alert(error instanceof Error ? error.message : "Failed to join table");
     }
   };
 
-  const handleDeleteGame = async (gameId: string, gameName: string) => {
-    if (confirm(`Delete game "${gameName}"? This cannot be undone.`)) {
-      try {
-        await deleteGame({ gameId: gameId as any });
-      } catch (error) {
-        console.error("Failed to delete game:", error);
-        alert(error instanceof Error ? error.message : "Failed to delete game");
-      }
-    }
-  };
-
-  const handleCleanupStaleGames = async () => {
-    try {
-      const result = await cleanupStaleGames({});
-      alert(`Cleaned up ${result.cleaned} stale games`);
-    } catch (error) {
-      console.error("Failed to cleanup stale games:", error);
-      alert("Failed to cleanup stale games");
-    }
-  };
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Users className="w-6 h-6" />
-          Available Games
-        </h2>
-        {games.length > 0 && (
-          <button 
-            className="btn btn-ghost btn-sm"
-            onClick={handleCleanupStaleGames}
-            title="Clean up old/empty games"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Cleanup
-          </button>
-        )}
-      </div>
-      
-      {games.length === 0 ? (
-        <div className="card bg-base-200">
-          <div className="card-body text-center">
-            <p className="opacity-70">No games available. Create one to get started!</p>
+  if (!mainTable) {
+    return (
+      <div className="max-w-2xl mx-auto text-center">
+        <div className="card bg-base-200 shadow-xl">
+          <div className="card-body">
+            <div className="loading loading-spinner loading-lg mx-auto"></div>
+            <p className="text-lg">Setting up the main table...</p>
           </div>
         </div>
-      ) : (
-        <div className="grid gap-4">
-          {games.map((game) => (
-            <div key={game._id} className="card bg-base-200 shadow-sm">
-              <div className="card-body">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-semibold">{game.name || `Game ${game._id.slice(-6)}`}</h3>
-                    <p className="text-sm opacity-70">
-                      {game.playerCount}/{game.maxPlayers} players • Ante: ${game.anteAmount}
-                    </p>
+      </div>
+    );
+  }
+
+  const availableSeats = mainTable.maxPlayers - (mainTable.playerCount || 0);
+  const isFull = availableSeats <= 0;
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="text-center mb-6">
+        <h2 className="text-3xl font-bold text-primary mb-2">🎰 The Main Table</h2>
+        <p className="text-lg opacity-80">Rock Paper Scissors Poker • $10 Ante • 8 Seats</p>
+      </div>
+
+      <div className="card bg-base-200 shadow-xl">
+        <div className="card-body">
+          <div className="text-center">
+            <h3 className="card-title justify-center text-xl mb-4">
+              {mainTable.name}
+            </h3>
+            
+            {/* Player Count Visualization */}
+            <div className="flex justify-center mb-4">
+              <div className="flex gap-2">
+                {Array.from({ length: mainTable.maxPlayers }).map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                      i < (mainTable.playerCount || 0) 
+                        ? 'bg-primary border-primary text-primary-content' 
+                        : 'border-gray-600 text-gray-500'
+                    }`}
+                  >
+                    {i < (mainTable.playerCount || 0) ? '👤' : '○'}
                   </div>
-                  <div className="flex gap-2">
-                    {game.playerCount <= 1 && (
-                      <button 
-                        className="btn btn-ghost btn-sm text-error hover:bg-error hover:text-white"
-                        onClick={() => void handleDeleteGame(game._id, game.name || `Game ${game._id.slice(-6)}`)}
-                        title="Delete game"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => void handleJoinGame(game._id)}
-                      disabled={game.playerCount >= game.maxPlayers}
-                    >
-                      {game.playerCount >= game.maxPlayers ? "Full" : "Join"}
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-          ))}
+
+            <div className="stats stats-horizontal shadow mb-6">
+              <div className="stat">
+                <div className="stat-title">Players</div>
+                <div className="stat-value text-2xl">{mainTable.playerCount || 0}/{mainTable.maxPlayers}</div>
+              </div>
+              <div className="stat">
+                <div className="stat-title">Status</div>
+                <div className={`stat-value text-lg ${
+                  mainTable.status === 'waiting' ? 'text-blue-500' : 
+                  mainTable.status === 'playing' ? 'text-green-500' : 
+                  'text-gray-500'
+                }`}>
+                  {mainTable.status === 'waiting' ? 'Waiting' : 
+                   mainTable.status === 'playing' ? 'Playing' : 
+                   'Finished'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-title">Hand</div>
+                <div className="stat-value text-lg">#{mainTable.handNumber || 1}</div>
+              </div>
+            </div>
+
+            <div className="text-center">
+              {isFull ? (
+                <div className="text-center">
+                  <p className="text-orange-500 mb-3">🔥 Table is full! Wait for a seat to open.</p>
+                  <button 
+                    className="btn btn-outline"
+                    onClick={() => void navigate({ to: `/game/${mainTable._id}` })}
+                  >
+                    Spectate Game
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-green-500 mb-3">
+                    ✨ {availableSeats} seat{availableSeats !== 1 ? 's' : ''} available
+                  </p>
+                  <button 
+                    className="btn btn-primary btn-lg"
+                    onClick={() => void handleJoinTable()}
+                  >
+                    <Users className="w-5 h-5" />
+                    Join The Table
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
