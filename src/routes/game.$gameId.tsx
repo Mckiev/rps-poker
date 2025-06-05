@@ -2,7 +2,7 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Clock, DollarSign, Users, Home, RotateCcw, Trophy, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
+import { Clock, DollarSign, Users, Home, RotateCcw, Trophy, TrendingUp, TrendingDown } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 
@@ -708,10 +708,10 @@ function BettingInterface({ round, playerId }: { round: any; playerId: string })
       {/* RPS Buttons */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         {[
-          { action: "paper", emoji: "📄", label: "Paper", description: "Check/Fold", color: "blue" },
-          { action: "scissors", emoji: "✂️", label: "Scissors", description: "Check/Call", color: "purple" },
-          { action: "rock", emoji: "🗿", label: "Rock", description: "Raise/Call", color: "orange" }
-        ].map(({ action, emoji, label, description, color }) => (
+          { action: "paper", emoji: "📄", label: "Paper", description: "Check/Fold" },
+          { action: "scissors", emoji: "✂️", label: "Scissors", description: "Check/Call" },
+          { action: "rock", emoji: "🗿", label: "Rock", description: "Raise/Call" }
+        ].map(({ action, emoji, label, description }) => (
           <button
             key={action}
             className={`p-3 rounded-lg border transition-all duration-300 transform ${
