@@ -86,6 +86,14 @@
    - Added reset button for session statistics with confirmation dialog
    - Improved table seating logic for 1v1, 1v2, and multi-player scenarios
 
+12. ✅ **Card Display & 4-Color Deck Improvements**
+   - Fixed pot overlap by moving current player position lower (y: 92%)
+   - Increased all card sizes: community cards = medium, player cards = large, showdown = medium
+   - Implemented 4-color deck: Hearts=red, Diamonds=blue, Clubs=green, Spades=black
+   - Added custom CSS classes for larger card sizes (w-18, h-22, h-24)
+   - Enhanced card shadows and rounded corners for better visibility
+   - Larger text sizes for rank and suit symbols
+
 ### Key Design Changes:
 - Table: From 384px to 256px height
 - Border: From 8px amber to 4px gray
@@ -104,6 +112,7 @@
 7. feat: add version indicator to lobby showing latest update info
 8. fix: improve stale game cleanup and make version indicator more visible
 9. fix: resolve game joining errors and improve seating positions
+10. feat: implement 4-color deck and bigger cards, fix pot overlap
 
 ### Next Steps:
 - Test the compact design on different screen sizes

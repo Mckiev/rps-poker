@@ -10,3 +10,8 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Custom card sizes for bigger cards */
+.w-18 { width: 4.5rem; }
+.h-22 { height: 5.5rem; }
+.h-24 { height: 6rem; }

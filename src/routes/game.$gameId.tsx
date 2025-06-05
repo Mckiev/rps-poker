@@ -138,10 +138,10 @@ function PokerTable({ game }: { game: any }) {
                     return (
                       <>
                         {revealedCards.map((card: string, i: number) => (
-                          <PlayingCard key={i} card={card} />
+                          <PlayingCard key={i} card={card} size="medium" />
                         ))}
                         {hiddenCards.map((_, i) => (
-                          <PlayingCard key={`hidden-${i}`} card="back" />
+                          <PlayingCard key={`hidden-${i}`} card="back" size="medium" />
                         ))}
                       </>
                     );
@@ -174,7 +174,7 @@ function PokerTable({ game }: { game: any }) {
           <h3 className="text-white font-medium text-sm mb-2">Your Cards</h3>
           <div className="flex gap-2 justify-center">
             {playerCards.holeCards.map((card: string, i: number) => (
-              <PlayingCard key={i} card={card} size="medium" />
+              <PlayingCard key={i} card={card} size="large" />
             ))}
           </div>
         </div>
@@ -267,25 +267,34 @@ function PokerTable({ game }: { game: any }) {
 
 function PlayingCard({ card, size = "normal" }: { card: string; size?: "normal" | "large" | "small" | "medium" }) {
   const isBack = card === "back";
+  
+  // Bigger card sizes overall
   const sizeClasses = 
-    size === "large" ? "w-14 h-20" : 
-    size === "medium" ? "w-12 h-16" :
-    size === "small" ? "w-8 h-11" : 
-    "w-10 h-14";
+    size === "large" ? "w-18 h-24" : 
+    size === "medium" ? "w-16 h-22" :
+    size === "small" ? "w-12 h-16" : 
+    "w-14 h-20";
+  
+  // 4-color deck: Hearts=red, Diamonds=blue, Clubs=green, Spades=black
+  const getCardColor = (card: string) => {
+    if (card.includes('♥')) return 'text-red-600';  // Hearts - Red
+    if (card.includes('♦')) return 'text-blue-600'; // Diamonds - Blue  
+    if (card.includes('♣')) return 'text-green-600'; // Clubs - Green
+    if (card.includes('♠')) return 'text-black';     // Spades - Black
+    return 'text-black';
+  };
   
   return (
-    <div className={`${sizeClasses} bg-white rounded border border-gray-400 shadow-md flex items-center justify-center relative overflow-hidden`}>
+    <div className={`${sizeClasses} bg-white rounded-lg border border-gray-400 shadow-lg flex items-center justify-center relative overflow-hidden`}>
       {isBack ? (
         <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-          <div className="text-white text-xs font-bold">♠</div>
+          <div className="text-white text-lg font-bold">♠</div>
         </div>
       ) : (
         <div className="text-center">
-          <div className={`font-bold ${
-            card.includes('♥') || card.includes('♦') ? 'text-red-600' : 'text-black'
-          }`}>
-            <div className={size === "small" ? "text-xs" : size === "medium" ? "text-sm" : "text-base"}>{card[0]}</div>
-            <div className={`leading-none ${size === "small" ? "text-xs" : size === "medium" ? "text-sm" : "text-lg"}`}>{card[1]}</div>
+          <div className={`font-bold ${getCardColor(card)}`}>
+            <div className={size === "small" ? "text-sm" : size === "medium" ? "text-base" : "text-lg"}>{card[0]}</div>
+            <div className={`leading-none ${size === "small" ? "text-sm" : size === "medium" ? "text-lg" : "text-2xl"}`}>{card[1]}</div>
           </div>
         </div>
       )}
@@ -306,8 +315,8 @@ function PlayersAroundTable({ players, currentPlayerId, gamePhase }: { players: 
   // Calculate positions around the table with current player at bottom
   const getPlayerPosition = (arrangedIndex: number, total: number) => {
     if (arrangedIndex === 0 && currentPlayerIndex >= 0) {
-      // Current player always at bottom center
-      return { x: 50, y: 85 };
+      // Current player always at bottom center, moved lower to avoid pot overlap
+      return { x: 50, y: 92 };
     }
     
     // Other players positioned around the top half of the table
@@ -366,7 +375,7 @@ function PlayerSeat({ player, isCurrentPlayer, gamePhase }: { player: any; isCur
       {showCards && (
         <div className="flex gap-1 justify-center mb-2">
           {player.holeCards.map((card: string, i: number) => (
-            <PlayingCard key={i} card={card} size="small" />
+            <PlayingCard key={i} card={card} size="medium" />
           ))}
         </div>
       )}
