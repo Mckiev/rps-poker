@@ -80,7 +80,7 @@ function PokerTable({ game }: { game: any }) {
           </button>
           
           <h1 className="text-2xl font-bold text-white">
-            Game {game._id.slice(-6)} - Hand #{game.handNumber || 1} - {game.currentPhase.toUpperCase()}
+            {game.name || `Game ${game._id.slice(-6)}`} - Hand #{game.handNumber || 1} - {game.currentPhase.toUpperCase()}
           </h1>
           
           {game.status === "finished" && (
@@ -119,25 +119,29 @@ function PokerTable({ game }: { game: any }) {
               <div className="text-center mb-4">
                 <h3 className="text-white font-semibold mb-3">Community Cards</h3>
                 <div className="flex gap-2 justify-center">
-                  {game.status === "playing" && 
-                    game.communityCards.slice(0, 
+                  {game.status === "playing" && (() => {
+                    const cardsToShow = 
+                      game.currentPhase === "preflop" ? 0 :
                       game.currentPhase === "flop" ? 3 :
                       game.currentPhase === "turn" ? 4 :
-                      game.currentPhase === "river" ? 5 : 0
-                    ).map((card: string, i: number) => (
-                      <PlayingCard key={i} card={card} />
-                    ))
-                  }
-                  {/* Placeholder cards */}
-                  {game.status === "playing" && Array.from({ 
-                    length: Math.max(0, 5 - Math.max(0,
-                      game.currentPhase === "flop" ? 3 :
-                      game.currentPhase === "turn" ? 4 :
-                      game.currentPhase === "river" ? 5 : 0
-                    ))
-                  }).map((_, i) => (
-                    <PlayingCard key={`hidden-${i}`} card="back" />
-                  ))}
+                      game.currentPhase === "river" || game.currentPhase === "showdown" ? 5 : 0;
+                    
+                    // Show revealed community cards
+                    const revealedCards = game.communityCards.slice(0, cardsToShow);
+                    // Show hidden placeholder cards
+                    const hiddenCards = Array.from({ length: Math.max(0, 5 - cardsToShow) });
+                    
+                    return (
+                      <>
+                        {revealedCards.map((card: string, i: number) => (
+                          <PlayingCard key={i} card={card} />
+                        ))}
+                        {hiddenCards.map((_, i) => (
+                          <PlayingCard key={`hidden-${i}`} card="back" />
+                        ))}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               

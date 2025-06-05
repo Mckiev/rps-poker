@@ -18,8 +18,10 @@ export default defineSchema({
     phaseTimeoutScheduledId: v.optional(v.id("_scheduled_functions")),
     anteAmount: v.number(),
     maxPlayers: v.number(),
-    handNumber: v.number(),
+    handNumber: v.optional(v.number()),
     lastHandWinner: v.optional(v.string()),
+    name: v.optional(v.string()),
+    createdAt: v.optional(v.number()),
   }),
 
   players: defineTable({

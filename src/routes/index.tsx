@@ -227,7 +227,7 @@ function AvailableGamesList({ playerName }: { playerName: string }) {
               <div className="card-body">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="font-semibold">Game {game._id.slice(-6)}</h3>
+                    <h3 className="font-semibold">{game.name || `Game ${game._id.slice(-6)}`}</h3>
                     <p className="text-sm opacity-70">
                       {game.playerCount}/{game.maxPlayers} players • Ante: ${game.anteAmount}
                     </p>

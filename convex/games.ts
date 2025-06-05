@@ -3,6 +3,24 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 
+// Generate human-readable game names
+function generateGameName(): string {
+  const adjectives = [
+    "Quick", "Wild", "Royal", "Lucky", "Golden", "Silver", "Diamond", "Ace", 
+    "High", "Fast", "Bold", "Sharp", "Smooth", "Elite", "Prime", "Epic"
+  ];
+  const nouns = [
+    "Table", "Room", "Game", "Match", "Round", "Tournament", "Challenge", 
+    "Session", "Arena", "Club", "Lounge", "Casino", "Hall", "Palace"
+  ];
+  
+  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  const number = Math.floor(Math.random() * 999) + 1;
+  
+  return `${adjective} ${noun} ${number}`;
+}
+
 export const createGame = mutation({
   args: {
     playerName: v.string(),
@@ -18,6 +36,8 @@ export const createGame = mutation({
       anteAmount,
       maxPlayers,
       handNumber: 1,
+      name: generateGameName(),
+      createdAt: Date.now(),
     });
 
     const playerId = await ctx.db.insert("players", {
@@ -307,8 +327,8 @@ export const advanceGamePhase = internalMutation({
         await ctx.db.patch(gameId, { lastHandWinner: winner.name });
       }
       
-      // Start new hand instead of ending the game
-      await ctx.scheduler.runAfter(3000, internal.games.startNewHand, { gameId });
+      // Start new hand after 20 seconds to show hand results
+      await ctx.scheduler.runAfter(20000, internal.games.startNewHand, { gameId });
       return;
     }
 
@@ -363,8 +383,8 @@ export const processShowdown = internalMutation({
       pot: 0
     });
 
-    // Start new hand after 3 seconds
-    await ctx.scheduler.runAfter(3000, internal.games.startNewHand, { gameId });
+    // Start new hand after 20 seconds to allow players to see showdown results
+    await ctx.scheduler.runAfter(20000, internal.games.startNewHand, { gameId });
   },
 });
 
@@ -416,7 +436,7 @@ export const startNewHand = internalMutation({
     }
 
     // Start new hand
-    const newHandNumber = game.handNumber + 1;
+    const newHandNumber = (game.handNumber || 1) + 1;
     
     // Deal new hole cards
     const deck = shuffleDeck(createDeck());
