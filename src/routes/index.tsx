@@ -15,9 +15,22 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const [playerName, setPlayerName] = useState("");
+  const [playerName, setPlayerName] = useState(() => {
+    // Load saved nickname from localStorage
+    return localStorage.getItem("rps-poker-nickname") || "";
+  });
   const [showCreateGame, setShowCreateGame] = useState(false);
   const navigate = useNavigate();
+
+  // Save nickname to localStorage whenever it changes
+  const updatePlayerName = (name: string) => {
+    setPlayerName(name);
+    if (name.trim()) {
+      localStorage.setItem("rps-poker-nickname", name.trim());
+    } else {
+      localStorage.removeItem("rps-poker-nickname");
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -32,11 +45,17 @@ function HomePage() {
       </div>
 
       {!playerName ? (
-        <PlayerNameForm onSubmit={setPlayerName} />
+        <PlayerNameForm onSubmit={updatePlayerName} />
       ) : (
         <div className="space-y-6">
           <div className="text-center">
             <p className="text-lg">Welcome, <span className="font-bold text-primary">{playerName}</span>!</p>
+            <button 
+              className="btn btn-ghost btn-sm mt-2"
+              onClick={() => updatePlayerName("")}
+            >
+              Change Name
+            </button>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

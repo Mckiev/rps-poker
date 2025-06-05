@@ -1,8 +1,8 @@
 import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Clock, DollarSign, Users } from "lucide-react";
+import { Clock, DollarSign, Users, Home, RotateCcw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api } from "../../convex/_generated/api";
 
@@ -32,7 +32,9 @@ function GamePage() {
 }
 
 function PokerTable({ game }: { game: any }) {
+  const navigate = useNavigate();
   const currentPlayerId = localStorage.getItem(`player-${game._id}`);
+  const playerName = localStorage.getItem("rps-poker-nickname") || "Player";
   
   const currentRoundQuery = convexQuery(api.actions.getCurrentBettingRound, { 
     gameId: game._id as any
@@ -44,13 +46,55 @@ function PokerTable({ game }: { game: any }) {
   });
   const { data: playerCards } = useSuspenseQuery(playerCardsQuery);
 
+  const createGame = useMutation(api.games.createGame);
+
+  const handlePlayAgain = async () => {
+    try {
+      const result = await createGame({ 
+        playerName, 
+        anteAmount: game.anteAmount, 
+        maxPlayers: game.maxPlayers 
+      });
+      localStorage.setItem(`player-${result.gameId}`, result.playerId);
+      navigate({ to: `/game/${result.gameId}` });
+    } catch (error) {
+      console.error("Failed to create new game:", error);
+    }
+  };
+
+  const handleReturnToLobby = () => {
+    navigate({ to: "/" });
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Game Header */}
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-white mb-2">
-          Game {game._id.slice(-6)} - {game.currentPhase.toUpperCase()}
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <button 
+            className="btn btn-ghost text-white"
+            onClick={handleReturnToLobby}
+          >
+            <Home className="w-4 h-4" />
+            Lobby
+          </button>
+          
+          <h1 className="text-2xl font-bold text-white">
+            Game {game._id.slice(-6)} - {game.currentPhase.toUpperCase()}
+          </h1>
+          
+          {game.status === "finished" && (
+            <button 
+              className="btn btn-primary"
+              onClick={handlePlayAgain}
+            >
+              <RotateCcw className="w-4 h-4" />
+              Play Again
+            </button>
+          )}
+          {game.status !== "finished" && <div className="w-24"></div>}
+        </div>
+        
         <div className="flex justify-center items-center gap-6 text-white">
           <div className="flex items-center gap-2">
             <DollarSign className="w-5 h-5" />
@@ -136,15 +180,55 @@ function PokerTable({ game }: { game: any }) {
 
       {/* Game Status */}
       <div className="mt-6 text-center">
-        <div className={`inline-block px-6 py-2 rounded-full text-white font-semibold ${
-          game.status === "waiting" ? "bg-blue-600" :
-          game.status === "playing" ? "bg-green-600" :
-          "bg-gray-600"
-        }`}>
-          {game.status === "waiting" ? "Waiting for players" :
-           game.status === "playing" ? `${game.currentPhase.toUpperCase()} - Betting Round` :
-           "Game Finished"}
-        </div>
+        {game.status === "finished" ? (
+          <div className="bg-black/50 backdrop-blur-sm rounded-lg p-6 max-w-md mx-auto">
+            <h2 className="text-2xl font-bold text-white mb-4">🎉 Game Over!</h2>
+            
+            {/* Winner Display */}
+            {(() => {
+              const winner = game.players.find((p: any) => p.status === "active" || p.balance > 1000);
+              return winner ? (
+                <div className="mb-4">
+                  <p className="text-white text-lg">
+                    Winner: <span className="font-bold text-yellow-400">{winner.name}</span>
+                  </p>
+                  <p className="text-gray-300">
+                    Final Balance: <span className="text-green-400">${winner.balance}</span>
+                  </p>
+                </div>
+              ) : (
+                <p className="text-white mb-4">No winner determined</p>
+              );
+            })()}
+            
+            <div className="flex gap-3 justify-center">
+              <button 
+                className="btn btn-primary"
+                onClick={handlePlayAgain}
+              >
+                <RotateCcw className="w-4 h-4" />
+                Play Again
+              </button>
+              <button 
+                className="btn btn-ghost text-white"
+                onClick={handleReturnToLobby}
+              >
+                <Home className="w-4 h-4" />
+                Back to Lobby
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className={`inline-block px-6 py-2 rounded-full text-white font-semibold ${
+            game.status === "waiting" ? "bg-blue-600" :
+            game.status === "playing" ? "bg-green-600" :
+            "bg-gray-600"
+          }`}>
+            {game.status === "waiting" ? "Waiting for players" :
+             game.status === "playing" ? `${game.currentPhase.toUpperCase()} - Betting Round` :
+             "Game Finished"}
+          </div>
+        )}
       </div>
     </div>
   );

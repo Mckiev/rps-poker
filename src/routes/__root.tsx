@@ -8,7 +8,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { ConvexReactClient, ConvexProvider } from "convex/react";
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -20,6 +20,25 @@ export const Route = createRootRouteWithContext<{
 function RootComponent() {
   const { queryClient, convexClient: convex } = Route.useRouteContext();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentNickname, setCurrentNickname] = useState(() => 
+    localStorage.getItem("rps-poker-nickname") || ""
+  );
+
+  // Listen for localStorage changes to update nickname display
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setCurrentNickname(localStorage.getItem("rps-poker-nickname") || "");
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    // Also check periodically since localStorage events don't fire for same-origin changes
+    const interval = setInterval(handleStorageChange, 1000);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -70,7 +89,11 @@ function RootComponent() {
                   </nav>
                 </div>
                 <div className="navbar-end">
-                  {/* No auth button needed */}
+                  {currentNickname && (
+                    <div className="text-white bg-primary px-3 py-1 rounded-full text-sm">
+                      {currentNickname}
+                    </div>
+                  )}
                 </div>
               </header>
               {/* Main content */}
