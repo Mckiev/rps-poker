@@ -75,6 +75,16 @@ function HomePage() {
           )}
 
           <AvailableGamesList playerName={playerName} />
+
+          {/* Version Info */}
+          <div className="mt-8 text-center">
+            <div className="inline-block bg-base-300 px-3 py-1.5 rounded-lg text-xs text-base-content/70">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Latest update: Dec 5, 2024 11:45 AM - Fixed 3-player games & moved session standings</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
