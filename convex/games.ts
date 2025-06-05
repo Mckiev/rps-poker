@@ -476,23 +476,54 @@ export const processShowdown = internalMutation({
 
     if (activePlayers.length === 0) return;
 
-    // For now, award to first player (in real implementation, evaluate hands)
-    const winner = activePlayers[0];
-    await ctx.db.patch(winner._id, { 
-      balance: winner.balance + game.pot 
+    // Evaluate poker hands for each active player
+    const playersWithHands = activePlayers.map(player => {
+      const hand = evaluatePokerHand([...player.holeCards, ...game.communityCards]);
+      return {
+        player,
+        hand,
+        handRank: hand.rank,
+        handName: hand.name
+      };
     });
 
+    // Sort by hand strength (higher rank = better hand)
+    playersWithHands.sort((a, b) => b.handRank - a.handRank);
+    
+    // Find all players with the best hand (for ties)
+    const bestHandRank = playersWithHands[0].handRank;
+    const winners = playersWithHands.filter(p => p.handRank === bestHandRank);
+    
+    // Split pot among winners
+    const potShare = Math.floor(game.pot / winners.length);
+    const remainder = game.pot % winners.length;
+    
+    for (let i = 0; i < winners.length; i++) {
+      const winner = winners[i];
+      const winnings = potShare + (i === 0 ? remainder : 0); // Give remainder to first winner
+      
+      await ctx.db.patch(winner.player._id, { 
+        balance: winner.player.balance + winnings 
+      });
+
+      // Track session stats for hand win
+      await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
+        playerName: winner.player.name,
+        profitChange: winnings, // Profit from winning the pot
+        gameFinished: false,
+        handWon: true,
+      });
+    }
+
+    // Update game with showdown results
+    const winnerNames = winners.map(w => w.player.name).join(", ");
+    const handDescription = winners.length > 1 
+      ? `${winnerNames} tie with ${winners[0].handName}` 
+      : `${winnerNames} wins with ${winners[0].handName}`;
+    
     await ctx.db.patch(gameId, { 
-      lastHandWinner: winner.name,
+      lastHandWinner: handDescription,
       pot: 0
-    });
-
-    // Track session stats for hand win
-    await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
-      playerName: winner.name,
-      profitChange: game.pot, // Profit from winning the pot
-      gameFinished: false,
-      handWon: true,
     });
 
     // Start new hand after 20 seconds to allow players to see showdown results
@@ -752,4 +783,114 @@ function shuffleDeck(deck: string[]): string[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
+}
+
+// Poker hand evaluation
+function evaluatePokerHand(cards: string[]): { rank: number; name: string; cards: string[] } {
+  // Parse cards into rank and suit arrays
+  const parsedCards = cards.map(card => ({
+    rank: parseRank(card[0]),
+    suit: card[1],
+    original: card
+  }));
+  
+  // Sort by rank (highest first)
+  parsedCards.sort((a, b) => b.rank - a.rank);
+  
+  // Count ranks and suits
+  const rankCounts = new Map<number, number>();
+  const suitCounts = new Map<string, number>();
+  
+  parsedCards.forEach(card => {
+    rankCounts.set(card.rank, (rankCounts.get(card.rank) || 0) + 1);
+    suitCounts.set(card.suit, (suitCounts.get(card.suit) || 0) + 1);
+  });
+  
+  // Find best 5-card hand
+  const isFlush = Array.from(suitCounts.values()).some(count => count >= 5);
+  const isStraight = checkStraight(parsedCards.map(c => c.rank));
+  const rankCountsArray = Array.from(rankCounts.entries()).sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+  
+  // Royal Flush (10, J, Q, K, A of same suit)
+  if (isFlush && isStraight && parsedCards[0].rank === 14) {
+    return { rank: 9, name: "Royal Flush", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // Straight Flush
+  if (isFlush && isStraight) {
+    return { rank: 8, name: "Straight Flush", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // Four of a Kind
+  if (rankCountsArray[0][1] === 4) {
+    return { rank: 7, name: "Four of a Kind", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // Full House
+  if (rankCountsArray[0][1] === 3 && rankCountsArray[1][1] === 2) {
+    return { rank: 6, name: "Full House", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // Flush
+  if (isFlush) {
+    return { rank: 5, name: "Flush", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // Straight
+  if (isStraight) {
+    return { rank: 4, name: "Straight", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // Three of a Kind
+  if (rankCountsArray[0][1] === 3) {
+    return { rank: 3, name: "Three of a Kind", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // Two Pair
+  if (rankCountsArray[0][1] === 2 && rankCountsArray[1][1] === 2) {
+    return { rank: 2, name: "Two Pair", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // One Pair
+  if (rankCountsArray[0][1] === 2) {
+    return { rank: 1, name: "One Pair", cards: parsedCards.slice(0, 5).map(c => c.original) };
+  }
+  
+  // High Card
+  return { rank: 0, name: "High Card", cards: parsedCards.slice(0, 5).map(c => c.original) };
+}
+
+function parseRank(rank: string): number {
+  switch (rank) {
+    case 'A': return 14;
+    case 'K': return 13;
+    case 'Q': return 12;
+    case 'J': return 11;
+    case 'T': return 10;
+    default: return parseInt(rank);
+  }
+}
+
+function checkStraight(ranks: number[]): boolean {
+  const uniqueRanks = [...new Set(ranks)].sort((a, b) => b - a);
+  
+  // Check for regular straight
+  for (let i = 0; i <= uniqueRanks.length - 5; i++) {
+    let consecutive = true;
+    for (let j = 1; j < 5; j++) {
+      if (uniqueRanks[i + j] !== uniqueRanks[i] - j) {
+        consecutive = false;
+        break;
+      }
+    }
+    if (consecutive) return true;
+  }
+  
+  // Check for A-2-3-4-5 straight (wheel)
+  if (uniqueRanks.includes(14) && uniqueRanks.includes(5) && 
+      uniqueRanks.includes(4) && uniqueRanks.includes(3) && uniqueRanks.includes(2)) {
+    return true;
+  }
+  
+  return false;
 }

@@ -6,6 +6,54 @@ import { Clock, DollarSign, Users, Home, RotateCcw, Trophy, TrendingUp, Trending
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 
+// Simple audio feedback system
+const playSound = (type: 'select' | 'submit' | 'success' | 'error' | 'timer' | 'newhand') => {
+  // Create audio context if needed
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  
+  const createBeep = (frequency: number, duration: number) => {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration);
+  };
+  
+  switch (type) {
+    case 'select':
+      createBeep(800, 0.1);
+      break;
+    case 'submit':
+      createBeep(600, 0.2);
+      setTimeout(() => createBeep(800, 0.2), 100);
+      break;
+    case 'success':
+      createBeep(800, 0.1);
+      setTimeout(() => createBeep(1000, 0.1), 100);
+      setTimeout(() => createBeep(1200, 0.1), 200);
+      break;
+    case 'error':
+      createBeep(300, 0.3);
+      break;
+    case 'timer':
+      createBeep(1000, 0.1);
+      break;
+    case 'newhand':
+      createBeep(500, 0.1);
+      setTimeout(() => createBeep(700, 0.1), 150);
+      break;
+  }
+};
+
 export const Route = createFileRoute("/game/$gameId")({
   loader: async ({ context: { queryClient }, params: { gameId } }) => {
     if (!gameId) throw new Error("Game ID is required");
@@ -121,7 +169,20 @@ function PokerTable({ game }: { game: any }) {
             {/* Community Cards Area */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <div className="text-center mb-2">
-                <h3 className="text-white font-medium text-sm mb-2">Community Cards</h3>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <h3 className="text-white font-medium text-sm">Community Cards</h3>
+                  {game.status === "playing" && (
+                    <div className={`text-xs px-2 py-1 rounded-full ${
+                      game.currentPhase === "preflop" ? "bg-blue-600 text-white" :
+                      game.currentPhase === "flop" ? "bg-green-600 text-white" :
+                      game.currentPhase === "turn" ? "bg-yellow-600 text-black" :
+                      game.currentPhase === "river" ? "bg-orange-600 text-white" :
+                      "bg-purple-600 text-white"
+                    }`}>
+                      {game.currentPhase.toUpperCase()}
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-2 justify-center">
                   {game.status === "playing" && (() => {
                     const cardsToShow = 
@@ -130,7 +191,7 @@ function PokerTable({ game }: { game: any }) {
                       game.currentPhase === "turn" ? 4 :
                       game.currentPhase === "river" || game.currentPhase === "showdown" ? 5 : 0;
                     
-                    // Show revealed community cards
+                    // Show revealed community cards with animation
                     const revealedCards = game.communityCards.slice(0, cardsToShow);
                     // Show hidden placeholder cards
                     const hiddenCards = Array.from({ length: Math.max(0, 5 - cardsToShow) });
@@ -138,14 +199,29 @@ function PokerTable({ game }: { game: any }) {
                     return (
                       <>
                         {revealedCards.map((card: string, i: number) => (
-                          <PlayingCard key={i} card={card} size="medium" />
+                          <div key={i} className="transform transition-all duration-500 hover:scale-110">
+                            <PlayingCard card={card} size="medium" />
+                          </div>
                         ))}
                         {hiddenCards.map((_, i) => (
-                          <PlayingCard key={`hidden-${i}`} card="back" size="medium" />
+                          <div key={`hidden-${i}`} className="opacity-60">
+                            <PlayingCard card="back" size="medium" />
+                          </div>
                         ))}
                       </>
                     );
                   })()}
+                  
+                  {/* Waiting state */}
+                  {game.status === "waiting" && (
+                    <div className="flex gap-2">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="opacity-30">
+                          <PlayingCard card="back" size="medium" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -187,6 +263,56 @@ function PokerTable({ game }: { game: any }) {
             round={currentRound} 
             playerId={currentPlayerId}
           />
+        </div>
+      )}
+
+      {/* Phase Transition Indicator */}
+      {game.status === "playing" && game.currentPhase === "showdown" && (
+        <div className="mt-3 mb-4">
+          <div className="bg-gradient-to-r from-purple-900/80 to-purple-800/80 backdrop-blur-sm rounded-lg p-4 max-w-2xl mx-auto border border-purple-500/50">
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-purple-300 mb-2">🃏 SHOWDOWN</h3>
+              <p className="text-purple-200 text-sm">Players reveal their hands - best poker hand wins!</p>
+              {game.lastHandWinner && (
+                <div className="mt-2 p-2 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
+                  <p className="text-yellow-300 font-semibold">{game.lastHandWinner}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase Progress Indicator */}
+      {game.status === "playing" && game.currentPhase !== "showdown" && (
+        <div className="mt-3 mb-4">
+          <div className="max-w-xl mx-auto">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-gray-400">Phase Progress</span>
+              <span className="text-xs text-gray-400 capitalize">{game.currentPhase}</span>
+            </div>
+            <div className="flex gap-1">
+              {["preflop", "flop", "turn", "river", "showdown"].map((phase, index) => (
+                <div
+                  key={phase}
+                  className={`flex-1 h-2 rounded ${
+                    phase === game.currentPhase
+                      ? "bg-gradient-to-r from-yellow-500 to-yellow-600 animate-pulse"
+                      : index < ["preflop", "flop", "turn", "river", "showdown"].indexOf(game.currentPhase)
+                      ? "bg-green-600"
+                      : "bg-gray-700"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Pre-flop</span>
+              <span>Flop</span>
+              <span>Turn</span>
+              <span>River</span>
+              <span>Showdown</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -239,20 +365,50 @@ function PokerTable({ game }: { game: any }) {
             {game.lastHandWinner && (
               <div className="bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 border border-yellow-500/50 rounded-lg p-2 mb-3 max-w-sm mx-auto">
                 <p className="text-yellow-300 font-medium text-sm">
-                  🏆 Last Hand: {game.lastHandWinner} won!
+                  🏆 Last Hand: {game.lastHandWinner}
                 </p>
               </div>
             )}
             
-            <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-medium ${
-              game.status === "waiting" ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white" :
-              game.status === "playing" ? "bg-gradient-to-r from-green-600 to-green-700 text-white" :
-              "bg-gray-700 text-gray-300"
-            } shadow-lg`}>
-              {game.status === "waiting" ? "Waiting for players" :
-               game.status === "playing" ? `Hand #${game.handNumber || 1} - ${game.currentPhase.toUpperCase()}` :
-               "Game Finished"}
-            </div>
+            {/* Waiting for Players State */}
+            {game.status === "waiting" && (
+              <div className="bg-gradient-to-r from-blue-900/80 to-blue-800/80 backdrop-blur-sm rounded-lg p-4 max-w-md mx-auto border border-blue-500/50 mb-3">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+                    <h3 className="text-blue-300 font-semibold">Waiting for Players</h3>
+                  </div>
+                  <p className="text-blue-200 text-sm mb-2">
+                    {game.players?.length || 0} / {game.maxPlayers} players joined
+                  </p>
+                  <div className="flex justify-center mb-2">
+                    <div className="flex gap-1">
+                      {Array.from({ length: game.maxPlayers }).map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={`w-3 h-3 rounded-full ${
+                            i < (game.players?.length || 0) ? 'bg-blue-400' : 'bg-gray-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-blue-300 text-xs">
+                    {(game.players?.length || 0) >= 2 
+                      ? "Game will start in 10 seconds or when full"
+                      : "Need at least 2 players to start"
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Playing State */}
+            {game.status === "playing" && (
+              <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg`}>
+                Hand #{game.handNumber || 1} - {game.currentPhase.toUpperCase()}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -373,10 +529,18 @@ function PlayerSeat({ player, isCurrentPlayer, gamePhase }: { player: any; isCur
     <div className={`text-center ${isCurrentPlayer ? 'scale-110' : ''}`}>
       {/* Hole Cards - Show during showdown */}
       {showCards && (
-        <div className="flex gap-1 justify-center mb-2">
-          {player.holeCards.map((card: string, i: number) => (
-            <PlayingCard key={i} card={card} size="medium" />
-          ))}
+        <div className="mb-2">
+          <div className="flex gap-1 justify-center mb-1">
+            {player.holeCards.map((card: string, i: number) => (
+              <PlayingCard key={i} card={card} size="medium" />
+            ))}
+          </div>
+          {/* Show hand strength if available */}
+          {player.handName && (
+            <div className="text-xs bg-gray-900/80 text-yellow-300 px-2 py-1 rounded-full border border-yellow-500/30">
+              {player.handName}
+            </div>
+          )}
         </div>
       )}
       
@@ -419,20 +583,34 @@ function PlayerSeat({ player, isCurrentPlayer, gamePhase }: { player: any; isCur
 function BettingInterface({ round, playerId }: { round: any; playerId: string }) {
   const [selectedAction, setSelectedAction] = useState<"paper" | "scissors" | "rock" | null>(null);
   const [timeLeft, setTimeLeft] = useState(30);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const makeAction = useMutation(api.actions.makeAction);
   
+  // Check if player has already submitted an action for this round
+  const playerHasActed = round.actions.some((action: any) => action.playerId === playerId);
+  
   const handleSubmitAction = useCallback(async () => {
-    if (!selectedAction) return;
+    if (!selectedAction || isSubmitting || playerHasActed) return;
+    
+    setIsSubmitting(true);
+    
+    // Play submit sound
+    playSound('submit');
     
     try {
       await makeAction({ 
         playerId: playerId as any, 
         action: selectedAction 
       });
+      setIsSubmitted(true);
+      playSound('success');
     } catch (error) {
       console.error("Failed to submit action:", error);
+      setIsSubmitting(false);
+      playSound('error');
     }
-  }, [selectedAction, playerId, makeAction]);
+  }, [selectedAction, playerId, makeAction, isSubmitting, playerHasActed]);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -440,28 +618,83 @@ function BettingInterface({ round, playerId }: { round: any; playerId: string })
       const remaining = Math.max(0, 30 - elapsed);
       setTimeLeft(remaining);
       
-      if (remaining === 0 && selectedAction) {
+      // Play warning sounds
+      if (remaining === 10 || remaining === 5) {
+        playSound('timer');
+      }
+      
+      // Auto-submit if time runs out and action is selected but not submitted
+      if (remaining === 0 && selectedAction && !isSubmitted && !playerHasActed) {
         void handleSubmitAction();
       }
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [round.startTime, selectedAction, handleSubmitAction]);
+  }, [round.startTime, selectedAction, handleSubmitAction, isSubmitted, playerHasActed]);
+
+  // Show different UI if player has already acted
+  if (playerHasActed || isSubmitted) {
+    return (
+      <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-4 max-w-xl mx-auto border border-green-600">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">✓</span>
+            </div>
+            <span className="text-green-400 text-lg font-semibold">Action Submitted!</span>
+          </div>
+          <p className="text-gray-300 mb-2">Waiting for other players...</p>
+          <div className="flex items-center justify-center gap-2">
+            <Clock className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-400">{timeLeft}s remaining</span>
+          </div>
+          
+          {/* Show action that was selected */}
+          {selectedAction && (
+            <div className="mt-3 p-2 bg-green-900/30 rounded-lg border border-green-700">
+              <p className="text-green-300 text-sm">Your choice: 
+                <span className="font-semibold">
+                  {selectedAction === "rock" ? "🗿 Rock" : 
+                   selectedAction === "paper" ? "📄 Paper" : 
+                   "✂️ Scissors"}
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-4 max-w-xl mx-auto border border-gray-700">
       {/* Timer */}
       <div className="text-center mb-4">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <Clock className="w-4 h-4 text-gray-300" />
-          <span className="text-white text-lg font-semibold">{timeLeft}s</span>
+          <Clock className={`w-4 h-4 ${
+            timeLeft <= 10 ? 'text-red-400 animate-pulse' : 
+            timeLeft <= 20 ? 'text-yellow-400' : 
+            'text-gray-300'
+          }`} />
+          <span className={`text-lg font-semibold ${
+            timeLeft <= 10 ? 'text-red-400 animate-pulse' : 
+            timeLeft <= 20 ? 'text-yellow-400' : 
+            'text-white'
+          }`}>{timeLeft}s</span>
         </div>
-        <div className="w-full bg-gray-800 rounded-full h-1.5">
+        <div className="w-full bg-gray-800 rounded-full h-2">
           <div 
-            className="bg-gradient-to-r from-red-500 to-red-600 h-1.5 rounded-full transition-all duration-1000"
+            className={`h-2 rounded-full transition-all duration-1000 ${
+              timeLeft <= 10 ? 'bg-gradient-to-r from-red-600 to-red-700 animate-pulse' :
+              timeLeft <= 20 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+              'bg-gradient-to-r from-green-500 to-green-600'
+            }`}
             style={{ width: `${(timeLeft / 30) * 100}%` }}
           />
         </div>
+        {timeLeft <= 10 && (
+          <p className="text-red-400 text-sm mt-1 animate-pulse font-semibold">⚠️ Time running out!</p>
+        )}
       </div>
 
       {/* Bet Info */}
@@ -475,23 +708,32 @@ function BettingInterface({ round, playerId }: { round: any; playerId: string })
       {/* RPS Buttons */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         {[
-          { action: "paper", emoji: "📄", label: "Paper", description: "Check/Fold" },
-          { action: "scissors", emoji: "✂️", label: "Scissors", description: "Check/Call" },
-          { action: "rock", emoji: "🗿", label: "Rock", description: "Raise/Call" }
-        ].map(({ action, emoji, label, description }) => (
+          { action: "paper", emoji: "📄", label: "Paper", description: "Check/Fold", color: "blue" },
+          { action: "scissors", emoji: "✂️", label: "Scissors", description: "Check/Call", color: "purple" },
+          { action: "rock", emoji: "🗿", label: "Rock", description: "Raise/Call", color: "orange" }
+        ].map(({ action, emoji, label, description, color }) => (
           <button
             key={action}
-            className={`p-3 rounded-lg border transition-all duration-200 ${
+            className={`p-3 rounded-lg border transition-all duration-300 transform ${
               selectedAction === action 
-                ? "border-yellow-400 bg-gradient-to-br from-yellow-400/20 to-yellow-500/20 scale-105 shadow-lg" 
-                : "border-gray-600 bg-gradient-to-br from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600"
-            }`}
-            onClick={() => setSelectedAction(action as any)}
+                ? `border-yellow-400 bg-gradient-to-br from-yellow-400/30 to-yellow-500/30 scale-110 shadow-xl ring-2 ring-yellow-400/50` 
+                : `border-gray-600 bg-gradient-to-br from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 hover:scale-105`
+            } ${selectedAction === action ? 'animate-pulse' : ''}`}
+            onClick={() => {
+              setSelectedAction(action as any);
+              playSound('select');
+            }}
+            disabled={isSubmitting}
           >
             <div className="text-center text-white">
-              <div className="text-2xl mb-1">{emoji}</div>
+              <div className={`text-3xl mb-2 transform transition-transform duration-200 ${
+                selectedAction === action ? 'scale-125' : ''
+              }`}>{emoji}</div>
               <div className="font-medium text-sm">{label}</div>
               <div className="text-xs opacity-70">{description}</div>
+              {selectedAction === action && (
+                <div className="mt-1 text-xs text-yellow-300 font-semibold">Selected ✓</div>
+              )}
             </div>
           </button>
         ))}
@@ -499,15 +741,28 @@ function BettingInterface({ round, playerId }: { round: any; playerId: string })
 
       {/* Submit Button */}
       <button
-        className={`w-full py-3 rounded-lg font-semibold transition-all duration-200 ${
-          selectedAction 
-            ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg" 
+        className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 transform ${
+          selectedAction && !isSubmitting
+            ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:scale-105 animate-pulse" 
+            : isSubmitting
+            ? "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white cursor-wait"
             : "bg-gray-700 text-gray-400 cursor-not-allowed"
         }`}
         onClick={() => void handleSubmitAction()}
-        disabled={!selectedAction}
+        disabled={!selectedAction || isSubmitting}
       >
-        Submit Action
+        {isSubmitting ? (
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Submitting...
+          </div>
+        ) : selectedAction ? (
+          <div className="flex items-center justify-center gap-2">
+            <span>🚀 Submit Action</span>
+          </div>
+        ) : (
+          "Choose an action first"
+        )}
       </button>
 
       {/* Player Actions Status */}
