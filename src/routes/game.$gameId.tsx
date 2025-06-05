@@ -2,7 +2,7 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Clock, DollarSign, Users, Home, RotateCcw, Trophy, TrendingUp, TrendingDown } from "lucide-react";
+import { Clock, DollarSign, Users, Home, RotateCcw, Trophy, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 
@@ -294,20 +294,49 @@ function PlayingCard({ card, size = "normal" }: { card: string; size?: "normal" 
 }
 
 function PlayersAroundTable({ players, currentPlayerId, gamePhase }: { players: any[]; currentPlayerId: string | null; gamePhase: string }) {
-  // Calculate positions around the table (oval/circle)
-  const getPlayerPosition = (index: number, total: number) => {
-    const angle = (index * 360) / total - 90; // Start from top
-    const radiusX = 45; // Horizontal radius percentage
-    const radiusY = 35; // Vertical radius percentage
-    const x = 50 + radiusX * Math.cos((angle * Math.PI) / 180);
-    const y = 50 + radiusY * Math.sin((angle * Math.PI) / 180);
-    return { x, y };
+  // Rearrange players so current player is always at bottom center
+  const currentPlayerIndex = players.findIndex(p => p._id === currentPlayerId);
+  const arrangedPlayers = currentPlayerIndex >= 0 
+    ? [
+        ...players.slice(currentPlayerIndex), // Current player first
+        ...players.slice(0, currentPlayerIndex) // Then others
+      ]
+    : players;
+
+  // Calculate positions around the table with current player at bottom
+  const getPlayerPosition = (arrangedIndex: number, total: number) => {
+    if (arrangedIndex === 0 && currentPlayerIndex >= 0) {
+      // Current player always at bottom center
+      return { x: 50, y: 85 };
+    }
+    
+    // Other players positioned around the top half of the table
+    const otherPlayerIndex = arrangedIndex - 1;
+    const totalOthers = total - 1;
+    
+    if (totalOthers === 1) {
+      // One opponent at top center
+      return { x: 50, y: 15 };
+    } else if (totalOthers === 2) {
+      // Two opponents: top-left and top-right
+      return otherPlayerIndex === 0 
+        ? { x: 25, y: 15 } 
+        : { x: 75, y: 15 };
+    } else {
+      // Multiple opponents spread across top arc
+      const angle = (otherPlayerIndex * 180) / (totalOthers - 1) - 90; // -90 to 90 degrees (top arc)
+      const radiusX = 40;
+      const radiusY = 25;
+      const x = 50 + radiusX * Math.cos((angle * Math.PI) / 180);
+      const y = 20 + radiusY * Math.sin((angle * Math.PI) / 180);
+      return { x, y };
+    }
   };
 
   return (
     <>
-      {players.map((player, index) => {
-        const position = getPlayerPosition(index, players.length);
+      {arrangedPlayers.map((player, arrangedIndex) => {
+        const position = getPlayerPosition(arrangedIndex, arrangedPlayers.length);
         const isCurrentPlayer = player._id === currentPlayerId;
         
         return (
@@ -492,6 +521,7 @@ function BettingInterface({ round, playerId }: { round: any; playerId: string })
 function SessionStandings() {
   const sessionStandingsQueryOptions = convexQuery(api.sessionStats.getSessionStandings, {});
   const { data: standings } = useSuspenseQuery(sessionStandingsQueryOptions);
+  const resetSessionStats = useMutation(api.sessionStats.resetSessionStats);
 
   if (standings.length === 0) {
     return (
@@ -507,12 +537,34 @@ function SessionStandings() {
     );
   }
 
+  const handleResetStats = async () => {
+    if (confirm("Reset all session statistics? This cannot be undone.")) {
+      try {
+        await resetSessionStats({});
+      } catch (error) {
+        console.error("Failed to reset session stats:", error);
+      }
+    }
+  };
+
   return (
     <div>
-      <h2 className="text-xl font-bold mb-3 flex items-center gap-2 text-white">
-        <Trophy className="w-5 h-5" />
-        Session Standings
-      </h2>
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+          <Trophy className="w-5 h-5" />
+          Session Standings
+        </h2>
+        {standings.length > 0 && (
+          <button 
+            className="btn btn-ghost btn-sm text-gray-400 hover:text-white"
+            onClick={handleResetStats}
+            title="Reset all session statistics"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Reset
+          </button>
+        )}
+      </div>
       
       <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">

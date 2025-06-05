@@ -71,7 +71,7 @@ export const joinGame = mutation({
   handler: async (ctx, { gameId, playerName }) => {
     const game = await ctx.db.get(gameId);
     if (!game) throw new Error("Game not found");
-    if (game.status !== "waiting") throw new Error("Game already started");
+    if (game.status === "finished") throw new Error("Game is finished");
 
     const existingPlayers = await ctx.db
       .query("players")
@@ -95,6 +95,14 @@ export const joinGame = mutation({
       holeCards: [],
       status: "active",
       lastSeen: Date.now(),
+    });
+
+    // Track session stats - starting with -$1000 buy-in for joining player
+    await ctx.runMutation(internal.sessionStats.updatePlayerStats, {
+      playerName,
+      profitChange: -1000, // Buy-in cost
+      gameFinished: false,
+      handWon: false,
     });
 
     // Start game logic

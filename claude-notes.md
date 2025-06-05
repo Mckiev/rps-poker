@@ -78,6 +78,14 @@
    - Created cleanupStaleGames mutation to remove old/empty games
    - Games sorted by most recent activity first
 
+11. ✅ **Fixed Game Joining & Seating Issues**
+   - Fixed join errors by allowing players to join "playing" games (not just "waiting")
+   - Fixed seating positions: current player always at bottom center
+   - Opponents positioned across top of table (1 opponent = top center, 2+ spread across top arc)
+   - Added session stats tracking for players joining existing games
+   - Added reset button for session statistics with confirmation dialog
+   - Improved table seating logic for 1v1, 1v2, and multi-player scenarios
+
 ### Key Design Changes:
 - Table: From 384px to 256px height
 - Border: From 8px amber to 4px gray
@@ -95,6 +103,7 @@
 6. feat: move session standings to game table for better visibility
 7. feat: add version indicator to lobby showing latest update info
 8. fix: improve stale game cleanup and make version indicator more visible
+9. fix: resolve game joining errors and improve seating positions
 
 ### Next Steps:
 - Test the compact design on different screen sizes
