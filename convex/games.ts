@@ -366,8 +366,12 @@ export const advanceGamePhase = internalMutation({
     const phaseOrder: typeof game.currentPhase[] = ["preflop", "flop", "turn", "river", "showdown"];
     const currentIndex = phaseOrder.indexOf(game.currentPhase);
     
-    if (currentIndex >= phaseOrder.length - 1) {
-      // Showdown
+    if (currentIndex >= phaseOrder.length - 2) {
+      // At river, advance to showdown
+      await ctx.db.patch(gameId, { 
+        currentPhase: "showdown",
+        phaseStartTime: Date.now()
+      });
       await ctx.scheduler.runAfter(0, internal.games.processShowdown, { gameId });
       return;
     }
@@ -379,12 +383,10 @@ export const advanceGamePhase = internalMutation({
     });
 
     // Start next betting round
-    if (nextPhase !== "showdown") {
-      await ctx.scheduler.runAfter(0, internal.games.startBettingRound, { 
-        gameId, 
-        phase: nextPhase as any
-      });
-    }
+    await ctx.scheduler.runAfter(0, internal.games.startBettingRound, { 
+      gameId, 
+      phase: nextPhase as any
+    });
   },
 });
 
