@@ -81,7 +81,7 @@ function HomePage() {
             <div className="inline-block bg-gray-800 border border-gray-600 px-4 py-2 rounded-lg text-sm text-gray-300 shadow-lg">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="font-medium">Latest update: Jun 5, 2025 2:43 PM PDT</span>
+                <span className="font-medium">Latest update: Jun 5, 2025 2:45 PM PDT</span>
               </div>
               <div className="text-xs text-gray-400 mt-1">Enhanced gameplay with better UI & poker hand evaluation</div>
             </div>
