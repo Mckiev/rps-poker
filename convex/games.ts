@@ -17,6 +17,7 @@ export const createGame = mutation({
       communityCards: [],
       anteAmount,
       maxPlayers,
+      handNumber: 1,
     });
 
     const playerId = await ctx.db.insert("players", {
@@ -297,19 +298,17 @@ export const advanceGamePhase = internalMutation({
       .collect();
 
     if (activePlayers.length <= 1) {
-      // Game over, award pot to remaining player
+      // Hand over, award pot to remaining player and start new hand
       if (activePlayers.length === 1) {
         const winner = activePlayers[0];
         await ctx.db.patch(winner._id, { 
           balance: winner.balance + game.pot 
         });
+        await ctx.db.patch(gameId, { lastHandWinner: winner.name });
       }
       
-      await ctx.db.patch(gameId, { 
-        status: "finished",
-        currentPhase: "showdown",
-        pot: 0
-      });
+      // Start new hand instead of ending the game
+      await ctx.scheduler.runAfter(3000, internal.games.startNewHand, { gameId });
       return;
     }
 
@@ -353,17 +352,109 @@ export const processShowdown = internalMutation({
 
     if (activePlayers.length === 0) return;
 
-    // Import poker evaluation (this would be in a real implementation)
-    // For now, just award to first player
+    // For now, award to first player (in real implementation, evaluate hands)
     const winner = activePlayers[0];
     await ctx.db.patch(winner._id, { 
       balance: winner.balance + game.pot 
     });
 
     await ctx.db.patch(gameId, { 
-      status: "finished",
-      currentPhase: "showdown",
+      lastHandWinner: winner.name,
       pot: 0
+    });
+
+    // Start new hand after 3 seconds
+    await ctx.scheduler.runAfter(3000, internal.games.startNewHand, { gameId });
+  },
+});
+
+export const startNewHand = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game) return;
+
+    // Get all players and check who can still play
+    const allPlayers = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .collect();
+
+    // Filter players who have enough money for the ante
+    const playersWithMoney = allPlayers.filter(player => player.balance >= game.anteAmount);
+
+    // End game if less than 2 players can afford ante
+    if (playersWithMoney.length < 2) {
+      await ctx.db.patch(gameId, { 
+        status: "finished",
+        currentPhase: "showdown"
+      });
+      return;
+    }
+
+    // Reset all players to active status (except those who are out)
+    for (const player of allPlayers) {
+      if (player.balance >= game.anteAmount) {
+        await ctx.db.patch(player._id, { 
+          status: "active",
+          holeCards: []
+        });
+      } else {
+        await ctx.db.patch(player._id, { status: "out" });
+      }
+    }
+
+    // Clear any active betting rounds
+    const activeBettingRounds = await ctx.db
+      .query("bettingRounds")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+    
+    for (const round of activeBettingRounds) {
+      await ctx.db.patch(round._id, { status: "completed" });
+    }
+
+    // Start new hand
+    const newHandNumber = game.handNumber + 1;
+    
+    // Deal new hole cards
+    const deck = shuffleDeck(createDeck());
+    let cardIndex = 0;
+
+    // Deal 2 cards to each active player
+    for (const player of playersWithMoney) {
+      const holeCards = [deck[cardIndex++], deck[cardIndex++]];
+      await ctx.db.patch(player._id, { holeCards });
+    }
+
+    // Collect antes
+    let totalPot = 0;
+    for (const player of playersWithMoney) {
+      const newBalance = Math.max(0, player.balance - game.anteAmount);
+      const anteContribution = player.balance - newBalance;
+      totalPot += anteContribution;
+      
+      await ctx.db.patch(player._id, { balance: newBalance });
+      if (newBalance === 0) {
+        await ctx.db.patch(player._id, { status: "out" });
+      }
+    }
+
+    // Update game for new hand
+    await ctx.db.patch(gameId, {
+      handNumber: newHandNumber,
+      currentPhase: "preflop",
+      pot: totalPot,
+      communityCards: [deck[cardIndex++], deck[cardIndex++], deck[cardIndex++]], // Flop ready
+      phaseStartTime: Date.now(),
+      lastHandWinner: undefined,
+    });
+
+    // Start first betting round of new hand
+    await ctx.scheduler.runAfter(0, internal.games.startBettingRound, { 
+      gameId, 
+      phase: "preflop" 
     });
   },
 });

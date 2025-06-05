@@ -80,7 +80,7 @@ function PokerTable({ game }: { game: any }) {
           </button>
           
           <h1 className="text-2xl font-bold text-white">
-            Game {game._id.slice(-6)} - {game.currentPhase.toUpperCase()}
+            Game {game._id.slice(-6)} - Hand #{game.handNumber || 1} - {game.currentPhase.toUpperCase()}
           </h1>
           
           {game.status === "finished" && (
@@ -182,22 +182,25 @@ function PokerTable({ game }: { game: any }) {
       <div className="mt-6 text-center">
         {game.status === "finished" ? (
           <div className="bg-black/50 backdrop-blur-sm rounded-lg p-6 max-w-md mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-4">🎉 Game Over!</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">🎉 Final Results</h2>
             
-            {/* Winner Display */}
+            {/* Final Winner Display */}
             {(() => {
-              const winner = game.players.find((p: any) => p.status === "active" || p.balance > 1000);
+              const winner = game.players.find((p: any) => p.balance >= game.anteAmount);
               return winner ? (
                 <div className="mb-4">
                   <p className="text-white text-lg">
-                    Winner: <span className="font-bold text-yellow-400">{winner.name}</span>
+                    Tournament Winner: <span className="font-bold text-yellow-400">{winner.name}</span>
                   </p>
                   <p className="text-gray-300">
                     Final Balance: <span className="text-green-400">${winner.balance}</span>
                   </p>
+                  <p className="text-gray-300 text-sm">
+                    Hands Played: {game.handNumber || 1}
+                  </p>
                 </div>
               ) : (
-                <p className="text-white mb-4">No winner determined</p>
+                <p className="text-white mb-4">All players eliminated</p>
               );
             })()}
             
@@ -207,7 +210,7 @@ function PokerTable({ game }: { game: any }) {
                 onClick={handlePlayAgain}
               >
                 <RotateCcw className="w-4 h-4" />
-                Play Again
+                New Tournament
               </button>
               <button 
                 className="btn btn-ghost text-white"
@@ -219,14 +222,25 @@ function PokerTable({ game }: { game: any }) {
             </div>
           </div>
         ) : (
-          <div className={`inline-block px-6 py-2 rounded-full text-white font-semibold ${
-            game.status === "waiting" ? "bg-blue-600" :
-            game.status === "playing" ? "bg-green-600" :
-            "bg-gray-600"
-          }`}>
-            {game.status === "waiting" ? "Waiting for players" :
-             game.status === "playing" ? `${game.currentPhase.toUpperCase()} - Betting Round` :
-             "Game Finished"}
+          <div>
+            {/* Hand Winner Notification */}
+            {game.lastHandWinner && (
+              <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-3 mb-4 max-w-md mx-auto">
+                <p className="text-yellow-200 font-semibold">
+                  🏆 Last Hand: {game.lastHandWinner} won!
+                </p>
+              </div>
+            )}
+            
+            <div className={`inline-block px-6 py-2 rounded-full text-white font-semibold ${
+              game.status === "waiting" ? "bg-blue-600" :
+              game.status === "playing" ? "bg-green-600" :
+              "bg-gray-600"
+            }`}>
+              {game.status === "waiting" ? "Waiting for players" :
+               game.status === "playing" ? `Hand #${game.handNumber || 1} - ${game.currentPhase.toUpperCase()}` :
+               "Game Finished"}
+            </div>
           </div>
         )}
       </div>
