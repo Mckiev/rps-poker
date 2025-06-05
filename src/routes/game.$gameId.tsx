@@ -159,8 +159,40 @@ function PokerTable({ game }: { game: any }) {
         </div>
       </div>
 
-      {/* Player's Hole Cards */}
-      {playerCards && (
+      {/* Showdown - All Players' Cards */}
+      {game.currentPhase === "showdown" && (
+        <div className="mt-6 text-center">
+          <h3 className="text-white font-semibold mb-4">🃏 Showdown - All Players' Cards</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            {game.players.filter((p: any) => p.status === "active" || p.status === "folded").map((player: any) => (
+              <div key={player._id} className="bg-black/40 backdrop-blur-sm rounded-lg p-4">
+                <div className={`mb-3 px-3 py-1 rounded-full text-sm font-semibold inline-block ${
+                  player._id === currentPlayerId ? 'bg-yellow-400 text-black' :
+                  player.status === "active" ? 'bg-green-600 text-white' :
+                  'bg-red-600 text-white'
+                }`}>
+                  {player.name} {player.status === "folded" ? "(Folded)" : ""}
+                </div>
+                <div className="flex gap-2 justify-center">
+                  {player.holeCards && player.holeCards.length > 0 ? (
+                    player.holeCards.map((card: string, i: number) => (
+                      <PlayingCard key={i} card={card} />
+                    ))
+                  ) : (
+                    <>
+                      <PlayingCard card="back" />
+                      <PlayingCard card="back" />
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Player's Hole Cards - Only show during active play, not showdown */}
+      {playerCards && game.currentPhase !== "showdown" && (
         <div className="mt-6 text-center">
           <h3 className="text-white font-semibold mb-3">Your Cards</h3>
           <div className="flex gap-3 justify-center">

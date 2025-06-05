@@ -108,7 +108,13 @@ export const getGame = query({
       .withIndex("by_game", (q) => q.eq("gameId", gameId))
       .collect();
 
-    return { ...game, players };
+    // Only include hole cards during showdown for security
+    const playersWithCards = players.map(player => ({
+      ...player,
+      holeCards: game.currentPhase === "showdown" ? player.holeCards : []
+    }));
+
+    return { ...game, players: playersWithCards };
   },
 });
 
