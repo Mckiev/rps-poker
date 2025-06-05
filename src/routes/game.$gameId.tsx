@@ -114,7 +114,7 @@ function PokerTable({ game }: { game: any }) {
       {/* Main Poker Table */}
       <div className="relative">
         {/* Poker Table Background */}
-        <div className="w-full h-64 bg-gradient-to-br from-green-900 to-green-700 rounded-full border-4 border-gray-600 shadow-2xl relative overflow-hidden">
+        <div className="w-full h-80 bg-gradient-to-br from-green-900 to-green-700 rounded-full border-4 border-gray-600 shadow-2xl relative overflow-hidden">
           {/* Table Felt Pattern */}
           <div className="absolute inset-3 bg-gradient-to-br from-green-800 to-green-600 rounded-full border-2 border-green-500 shadow-inner">
             
@@ -315,8 +315,8 @@ function PlayersAroundTable({ players, currentPlayerId, gamePhase }: { players: 
   // Calculate positions around the table with current player at bottom
   const getPlayerPosition = (arrangedIndex: number, total: number) => {
     if (arrangedIndex === 0 && currentPlayerIndex >= 0) {
-      // Current player always at bottom center, moved lower to avoid pot overlap
-      return { x: 50, y: 92 };
+      // Current player always at bottom center, with more space due to taller table
+      return { x: 50, y: 88 };
     }
     
     // Other players positioned around the top half of the table
@@ -528,51 +528,51 @@ function BettingInterface({ round, playerId }: { round: any; playerId: string })
 }
 
 function SessionStandings() {
-  const sessionStandingsQueryOptions = convexQuery(api.sessionStats.getSessionStandings, {});
-  const { data: standings } = useSuspenseQuery(sessionStandingsQueryOptions);
-  const resetSessionStats = useMutation(api.sessionStats.resetSessionStats);
+  const { gameId } = Route.useParams();
+  const gameQueryOptions = convexQuery(api.games.getGame, { gameId: gameId as any });
+  const { data: game } = useSuspenseQuery(gameQueryOptions);
+  
+  // Calculate table standings from current game players
+  const getTableStandings = () => {
+    if (!game?.players) return [];
+    
+    return game.players
+      .map((player: any) => ({
+        playerName: player.name,
+        currentBalance: player.balance,
+        profit: player.balance - 1000, // Starting balance was 1000
+        status: player.status,
+        _id: player._id
+      }))
+      .sort((a: any, b: any) => b.profit - a.profit); // Sort by profit descending
+  };
 
-  if (standings.length === 0) {
+  const tableStandings = getTableStandings();
+
+  if (tableStandings.length === 0) {
     return (
       <div>
         <h2 className="text-xl font-bold mb-3 flex items-center gap-2 text-white">
           <Trophy className="w-5 h-5" />
-          Session Standings
+          Table Standings
         </h2>
         <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-4 border border-gray-700">
-          <p className="text-gray-400 text-center">No session data yet. Play some games to see standings!</p>
+          <p className="text-gray-400 text-center">Waiting for players to join this table...</p>
         </div>
       </div>
     );
   }
-
-  const handleResetStats = async () => {
-    if (confirm("Reset all session statistics? This cannot be undone.")) {
-      try {
-        await resetSessionStats({});
-      } catch (error) {
-        console.error("Failed to reset session stats:", error);
-      }
-    }
-  };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-xl font-bold flex items-center gap-2 text-white">
           <Trophy className="w-5 h-5" />
-          Session Standings
+          Table Standings
         </h2>
-        {standings.length > 0 && (
-          <button 
-            className="btn btn-ghost btn-sm text-gray-400 hover:text-white"
-            onClick={handleResetStats}
-            title="Reset all session statistics"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Reset
-          </button>
-        )}
+        <div className="text-xs text-gray-400">
+          Current Game: {game?.name || 'Poker Table'}
+        </div>
       </div>
       
       <div className="bg-gray-900/90 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden">
@@ -583,13 +583,12 @@ function SessionStandings() {
                 <th className="px-3 py-2 text-left">Rank</th>
                 <th className="px-3 py-2 text-left">Player</th>
                 <th className="px-3 py-2 text-right">Profit</th>
-                <th className="px-3 py-2 text-center">Games</th>
-                <th className="px-3 py-2 text-center">Wins</th>
-                <th className="px-3 py-2 text-center">Last Seen</th>
+                <th className="px-3 py-2 text-center">Balance</th>
+                <th className="px-3 py-2 text-center">Status</th>
               </tr>
             </thead>
             <tbody>
-              {standings.map((player, index) => (
+              {tableStandings.map((player, index) => (
                 <tr key={player._id} className="border-t border-gray-700/50 hover:bg-gray-800/30">
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2 text-white">
@@ -600,24 +599,31 @@ function SessionStandings() {
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <div className="font-medium text-white text-sm">{player.playerName}</div>
+                    <div className="font-medium text-white text-sm flex items-center gap-1">
+                      {player.playerName}
+                      {player.status === "folded" && <span className="text-red-400 text-xs">(Folded)</span>}
+                      {player.status === "out" && <span className="text-gray-500 text-xs">(Out)</span>}
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className={`font-mono font-semibold flex items-center justify-end gap-1 text-sm ${
-                      player.totalProfit > 0 ? 'text-green-400' : 
-                      player.totalProfit < 0 ? 'text-red-400' : 
+                      player.profit > 0 ? 'text-green-400' : 
+                      player.profit < 0 ? 'text-red-400' : 
                       'text-gray-300'
                     }`}>
-                      {player.totalProfit > 0 && <TrendingUp className="w-3 h-3" />}
-                      {player.totalProfit < 0 && <TrendingDown className="w-3 h-3" />}
-                      ${player.totalProfit.toLocaleString()}
+                      {player.profit > 0 && <TrendingUp className="w-3 h-3" />}
+                      {player.profit < 0 && <TrendingDown className="w-3 h-3" />}
+                      ${player.profit.toLocaleString()}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-center text-gray-300 text-sm">{player.gamesPlayed}</td>
-                  <td className="px-3 py-2 text-center text-gray-300 text-sm">{player.handsWon}</td>
+                  <td className="px-3 py-2 text-center text-gray-300 text-sm">${player.currentBalance}</td>
                   <td className="px-3 py-2 text-center">
-                    <div className="text-xs text-gray-400">
-                      {new Date(player.lastSeen).toLocaleDateString()}
+                    <div className={`text-xs px-2 py-1 rounded-full ${
+                      player.status === "active" ? 'bg-green-600 text-white' :
+                      player.status === "folded" ? 'bg-red-600 text-white' :
+                      'bg-gray-600 text-white'
+                    }`}>
+                      {player.status.charAt(0).toUpperCase() + player.status.slice(1)}
                     </div>
                   </td>
                 </tr>

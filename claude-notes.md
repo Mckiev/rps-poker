@@ -94,6 +94,16 @@
    - Enhanced card shadows and rounded corners for better visibility
    - Larger text sizes for rank and suit symbols
 
+13. ✅ **Fixed Pot Overlap & Table-Specific Standings**
+   - Stretched poker table vertically (h-64 → h-80) for more space
+   - Adjusted player position (y: 92% → 88%) with taller table
+   - Replaced global session standings with table-specific standings
+   - Table standings show only current game players and their profits
+   - Profit calculated as current balance - starting balance ($1000)
+   - Shows player status (Active/Folded/Out) with color-coded badges
+   - Displays current balance and profit/loss from this table only
+   - No more confusing cross-session statistics
+
 ### Key Design Changes:
 - Table: From 384px to 256px height
 - Border: From 8px amber to 4px gray
@@ -113,6 +123,7 @@
 8. fix: improve stale game cleanup and make version indicator more visible
 9. fix: resolve game joining errors and improve seating positions
 10. feat: implement 4-color deck and bigger cards, fix pot overlap
+11. fix: stretch table and implement table-specific standings
 
 ### Next Steps:
 - Test the compact design on different screen sizes
